@@ -1,5 +1,5 @@
 
-# Hangfire.PostgreSql
+# Hangfire.CockroachDB
 [![Build status](https://ci.appveyor.com/api/projects/status/a01vpyliv5mh9xac/branch/master?svg=true)](https://ci.appveyor.com/project/vytautask/hangfire-postgresql-lel5h/branch/master)
 
 This is an plugin to the Hangfire to enable PostgreSQL as a storage system.

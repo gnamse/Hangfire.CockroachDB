@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using Dapper;
+using Hangfire.CockroachDB;
+using Hangfire.CocroachDB.Tests.Utils;
 using Hangfire.Common;
-using Hangfire.PostgreSql.Tests.Utils;
 using Hangfire.States;
 using Hangfire.Storage;
 using Hangfire.Storage.Monitoring;
@@ -12,71 +12,71 @@ using Moq;
 using Npgsql;
 using Xunit;
 
-namespace Hangfire.PostgreSql.Tests
+namespace Hangfire.CocroachDB.Tests;
+
+public class PostgreSqlMonitoringApiFacts : IClassFixture<PostgreSqlStorageFixture>
 {
-  public class PostgreSqlMonitoringApiFacts : IClassFixture<PostgreSqlStorageFixture>
+  private readonly PostgreSqlStorageFixture _fixture;
+
+  public PostgreSqlMonitoringApiFacts(PostgreSqlStorageFixture fixture)
   {
-    private readonly PostgreSqlStorageFixture _fixture;
+    _fixture = fixture;
+  }
 
-    public PostgreSqlMonitoringApiFacts(PostgreSqlStorageFixture fixture)
-    {
-      _fixture = fixture;
-    }
-
-    [Fact]
-    [CleanDatabase]
-    public void GetJobs_MixedCasing_ReturnsJob()
-    {
-      string arrangeSql = $@"
+  [Fact]
+  [CleanDatabase]
+  public void GetJobs_MixedCasing_ReturnsJob()
+  {
+    string arrangeSql = $@"
         INSERT INTO ""{ConnectionUtils.GetSchemaName()}"".""job""(""invocationdata"", ""arguments"", ""createdat"")
         VALUES (@InvocationData, @Arguments, NOW() AT TIME ZONE 'UTC') RETURNING ""id""";
 
-      Job job = Job.FromExpression(() => SampleMethod("Hello"));
-      InvocationData invocationData = InvocationData.SerializeJob(job);
+    Job job = Job.FromExpression(() => SampleMethod("Hello"));
+    InvocationData invocationData = InvocationData.SerializeJob(job);
 
-      UseConnection(connection => {
-        long jobId = connection.QuerySingle<long>(arrangeSql,
-          new {
-            InvocationData = SerializationHelper.Serialize(invocationData), invocationData.Arguments,
-          });
+    UseConnection(connection => {
+      long jobId = connection.QuerySingle<long>(arrangeSql,
+        new {
+          InvocationData = SerializationHelper.Serialize(invocationData),
+          invocationData.Arguments,
+        });
 
-        Mock<IState> state = new();
-        state.Setup(x => x.Name).Returns(SucceededState.StateName);
-        state.Setup(x => x.SerializeData())
-          .Returns(new Dictionary<string, string> {
-            { "SUCCEEDEDAT", "2018-05-03T13:28:18.3939693Z" },
-            { "PerformanceDuration", "53" },
-            { "latency", "6730" },
-          });
+      Mock<IState> state = new();
+      state.Setup(x => x.Name).Returns(SucceededState.StateName);
+      state.Setup(x => x.SerializeData())
+        .Returns(new Dictionary<string, string> {
+          { "SUCCEEDEDAT", "2018-05-03T13:28:18.3939693Z" },
+          { "PerformanceDuration", "53" },
+          { "latency", "6730" },
+        });
 
-        Commit(connection, x => x.SetJobState(jobId.ToString(CultureInfo.InvariantCulture), state.Object));
+      Commit(connection, x => x.SetJobState(jobId.ToString(CultureInfo.InvariantCulture), state.Object));
 
-        IMonitoringApi monitoringApi = _fixture.Storage.GetMonitoringApi();
-        JobList<SucceededJobDto> jobs = monitoringApi.SucceededJobs(0, 10);
+      IMonitoringApi monitoringApi = _fixture.Storage.GetMonitoringApi();
+      JobList<SucceededJobDto> jobs = monitoringApi.SucceededJobs(0, 10);
 
-        Assert.NotNull(jobs);
-      });
-    }
+      Assert.NotNull(jobs);
+    });
+  }
 
-    private void UseConnection(Action<NpgsqlConnection> action)
-    {
-      PostgreSqlStorage storage = _fixture.SafeInit();
-      action(storage.CreateAndOpenConnection());
-    }
+  private void UseConnection(Action<NpgsqlConnection> action)
+  {
+    PostgreSqlStorage storage = _fixture.SafeInit();
+    action(storage.CreateAndOpenConnection());
+  }
 
-    private void Commit(
-      NpgsqlConnection connection,
-      Action<PostgreSqlWriteOnlyTransaction> action)
-    {
-      PostgreSqlStorage storage = _fixture.SafeInit();
-      using PostgreSqlWriteOnlyTransaction transaction = new(storage, () => connection);
-      action(transaction);
-      transaction.Commit();
-    }
+  private void Commit(
+    NpgsqlConnection connection,
+    Action<PostgreSqlWriteOnlyTransaction> action)
+  {
+    PostgreSqlStorage storage = _fixture.SafeInit();
+    using PostgreSqlWriteOnlyTransaction transaction = new(storage, () => connection);
+    action(transaction);
+    transaction.Commit();
+  }
 
 #pragma warning disable xUnit1013 // Public method should be marked as test
-    public static void SampleMethod(string arg)
+  public static void SampleMethod(string arg)
 #pragma warning restore xUnit1013 // Public method should be marked as test
-    { }
-  }
+  { }
 }

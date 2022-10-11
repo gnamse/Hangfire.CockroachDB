@@ -1,59 +1,59 @@
 ﻿using System;
 using System.Linq;
 using Dapper;
-using Hangfire.PostgreSql.Tests.Utils;
+using Hangfire.CockroachDB;
+using Hangfire.CocroachDB.Tests.Utils;
 using Npgsql;
 using Xunit;
 
-namespace Hangfire.PostgreSql.Tests
+namespace Hangfire.CocroachDB.Tests;
+
+public class PostgreSqlInstallerFacts
 {
-  public class PostgreSqlInstallerFacts
+  [Fact]
+  public void InstallingSchemaUpdatesVersionAndShouldNotThrowAnException()
   {
-    [Fact]
-    public void InstallingSchemaUpdatesVersionAndShouldNotThrowAnException()
-    {
-      Exception ex = Record.Exception(() => {
-        UseConnection(connection => {
-          string schemaName = "hangfire_tests_" + Guid.NewGuid().ToString().Replace("-", "_").ToLower();
+    Exception ex = Record.Exception(() => {
+      UseConnection(connection => {
+        string schemaName = "hangfire_tests_" + Guid.NewGuid().ToString().Replace("-", "_").ToLower();
 
-          PostgreSqlObjectsInstaller.Install(connection, schemaName);
+        PostgreSqlObjectsInstaller.Install(connection, schemaName);
 
-          int lastVersion = connection.Query<int>($@"SELECT version FROM ""{schemaName}"".""schema""").Single();
-          Assert.Equal(17, lastVersion);
+        int lastVersion = connection.Query<int>($@"SELECT version FROM ""{schemaName}"".""schema""").Single();
+        Assert.Equal(17, lastVersion);
 
-          connection.Execute($@"DROP SCHEMA ""{schemaName}"" CASCADE;");
-        });
+        connection.Execute($@"DROP SCHEMA ""{schemaName}"" CASCADE;");
       });
+    });
 
-      Assert.Null(ex);
-    }
+    Assert.Null(ex);
+  }
 
-    [Fact]
-    public void InstallingSchemaWithCapitalsUpdatesVersionAndShouldNotThrowAnException()
-    {
-      Exception ex = Record.Exception(() => {
-        UseConnection(connection => {
-          string schemaName = "Hangfire_Tests_" + Guid.NewGuid().ToString().Replace("-", "_").ToLower();
+  [Fact]
+  public void InstallingSchemaWithCapitalsUpdatesVersionAndShouldNotThrowAnException()
+  {
+    Exception ex = Record.Exception(() => {
+      UseConnection(connection => {
+        string schemaName = "Hangfire_Tests_" + Guid.NewGuid().ToString().Replace("-", "_").ToLower();
 
-          PostgreSqlObjectsInstaller.Install(connection, schemaName);
+        PostgreSqlObjectsInstaller.Install(connection, schemaName);
 
-          int lastVersion = connection.Query<int>($@"SELECT version FROM ""{schemaName}"".""schema""").Single();
-          Assert.Equal(17, lastVersion);
+        int lastVersion = connection.Query<int>($@"SELECT version FROM ""{schemaName}"".""schema""").Single();
+        Assert.Equal(17, lastVersion);
 
-          connection.Execute($@"DROP SCHEMA ""{schemaName}"" CASCADE;");
-        });
+        connection.Execute($@"DROP SCHEMA ""{schemaName}"" CASCADE;");
       });
+    });
 
-      Assert.Null(ex);
-    }
-    
-    
-    private static void UseConnection(Action<NpgsqlConnection> action)
+    Assert.Null(ex);
+  }
+
+
+  private static void UseConnection(Action<NpgsqlConnection> action)
+  {
+    using (NpgsqlConnection connection = ConnectionUtils.CreateConnection())
     {
-      using (NpgsqlConnection connection = ConnectionUtils.CreateConnection())
-      {
-        action(connection);
-      }
+      action(connection);
     }
   }
 }

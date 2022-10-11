@@ -25,35 +25,34 @@ using System.IO;
 using System.Reflection;
 using Npgsql;
 
-namespace Hangfire.PostgreSql.Tests.Utils
+namespace Hangfire.CocroachDB.Tests.Utils;
+
+internal static class PostgreSqlTestObjectsInitializer
 {
-  internal static class PostgreSqlTestObjectsInitializer
+  public static void CleanTables(NpgsqlConnection connection)
   {
-    public static void CleanTables(NpgsqlConnection connection)
+    if (connection == null) throw new ArgumentNullException(nameof(connection));
+
+    string script = null;
+    script = GetStringResource(typeof(PostgreSqlTestObjectsInitializer).GetTypeInfo().Assembly,
+      "Hangfire.PostgreSql.Tests.Scripts.Clean.sql").Replace("'hangfire'", $"'{ConnectionUtils.GetSchemaName()}'");
+
+    using NpgsqlTransaction transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+    using NpgsqlCommand command = new(script, connection, transaction);
+    command.CommandTimeout = 120;
+    command.ExecuteNonQuery();
+    transaction.Commit();
+  }
+
+  private static string GetStringResource(Assembly assembly, string resourceName)
+  {
+    using Stream stream = assembly.GetManifestResourceStream(resourceName);
+    if (stream == null)
     {
-      if (connection == null) throw new ArgumentNullException(nameof(connection));
-
-      string script = null;
-      script = GetStringResource(typeof(PostgreSqlTestObjectsInitializer).GetTypeInfo().Assembly,
-        "Hangfire.PostgreSql.Tests.Scripts.Clean.sql").Replace("'hangfire'", $"'{ConnectionUtils.GetSchemaName()}'");
-
-      using NpgsqlTransaction transaction = connection.BeginTransaction(IsolationLevel.Serializable);
-      using NpgsqlCommand command = new(script, connection, transaction);
-      command.CommandTimeout = 120;
-      command.ExecuteNonQuery();
-      transaction.Commit();
+      throw new InvalidOperationException($"Requested resource '{resourceName}' was not found in the assembly '{assembly}'.");
     }
 
-    private static string GetStringResource(Assembly assembly, string resourceName)
-    {
-      using Stream stream = assembly.GetManifestResourceStream(resourceName);
-      if (stream == null)
-      {
-        throw new InvalidOperationException($"Requested resource '{resourceName}' was not found in the assembly '{assembly}'.");
-      }
-
-      using StreamReader reader = new(stream);
-      return reader.ReadToEnd();
-    }
+    using StreamReader reader = new(stream);
+    return reader.ReadToEnd();
   }
 }

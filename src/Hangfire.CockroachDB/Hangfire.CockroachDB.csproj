@@ -1,0 +1,73 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>PostgreSql storage implementation for Hangfire (background job system for ASP.NET and aspnet core applications).</Description>
+    <Copyright>Copyright © 2014-2021 Frank Hommers and others</Copyright>
+    <AssemblyTitle>Hangfire PostgreSql Storage</AssemblyTitle>
+    <VersionPrefix>1.9.4</VersionPrefix>
+    <Authors>Frank Hommers and others (Burhan Irmikci (barhun), Zachary Sims(zsims), kgamecarter, Stafford Williams (staff0rd), briangweber, Viktor Svyatokha (ahydrax), Christopher Dresel (Dresel), Vytautas Kasparavičius (vytautask), Vincent Vrijburg, David Roth (davidroth).</Authors>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>Hangfire.CocroachDB</AssemblyName>
+    <OutputType>Library</OutputType>
+    <PackageTags>Hangfire;PostgreSql;Postgres</PackageTags>
+    <PackageReleaseNotes>https://github.com/frankhommers/Hangfire.PostgreSql/releases</PackageReleaseNotes>
+    <PackageProjectUrl>http://hmm.rs/Hangfire.PostgreSql</PackageProjectUrl>
+    <PackageLicenseUrl></PackageLicenseUrl>
+    <Version>1.9.4.0</Version>
+    <FileVersion>1.9.4.0</FileVersion>
+    <AssemblyVersion>1.9.4.0</AssemblyVersion>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <RepositoryUrl>https://github.com/frankhommers/Hangfire.PostgreSql</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Company>Frank Hommers and others (Burhan Irmikci (barhun), Zachary Sims(zsims), kgamecarter, Stafford Williams (staff0rd), briangweber, Viktor Svyatokha (ahydrax), Christopher Dresel (Dresel), Vytautas Kasparavičius (vytautask), Vincent Vrijburg, David Roth (davidroth).</Company>
+    <LangVersion>default</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Scripts\*.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.0.123" />
+    <PackageReference Include="GitVersion.MsBuild" Version="5.8.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Hangfire.Core" Version="1.7.27" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE.md">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+  
+  <!-- Overrides for Cake script -->
+
+  <Choose>
+    <When Condition="'$(NpgsqlVersion)' == '5'">
+      <PropertyGroup>
+        <!--For pre-processor directive use in source code -->
+        <DefineConstants>USING_NPGSQL_VERSION_5</DefineConstants>
+        <PackageId>Hangfire.PostgreSql.Npgsql5</PackageId>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="Npgsql" Version="5.0.0" />
+      </ItemGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <PackageId>Hangfire.PostgreSql</PackageId>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="Npgsql" Version="6.0.0" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
+
+  <!-- END Overrides for Cake script -->
+
+</Project>

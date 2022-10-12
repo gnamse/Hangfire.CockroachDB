@@ -1,72 +1,72 @@
 ﻿using System;
 using System.Globalization;
-using Hangfire.CockroachDB;
 using Npgsql;
 
-namespace Hangfire.CocroachDB.Tests.Utils;
-
-public static class ConnectionUtils
+namespace Hangfire.PostgreSql.Tests.Utils
 {
-  private const string DatabaseVariable = "Hangfire_PostgreSql_DatabaseName";
-  private const string SchemaVariable = "Hangfire_PostgreSql_SchemaName";
-
-  private const string ConnectionStringTemplateVariable = "Hangfire_PostgreSql_ConnectionStringTemplate";
-
-  private const string MasterDatabaseName = "postgres";
-  private const string DefaultDatabaseName = @"hangfire_tests";
-  private const string DefaultSchemaName = @"hangfire";
-
-  private const string DefaultConnectionStringTemplate = @"Server=127.0.0.1;Port=5432;Database=postgres;User Id=postgres;Password=password;";
-
-  public static string GetDatabaseName()
+  public static class ConnectionUtils
   {
-    return Environment.GetEnvironmentVariable(DatabaseVariable) ?? DefaultDatabaseName;
-  }
+    private const string DatabaseVariable = "Hangfire_PostgreSql_DatabaseName";
+    private const string SchemaVariable = "Hangfire_PostgreSql_SchemaName";
 
-  public static string GetSchemaName()
-  {
-    return Environment.GetEnvironmentVariable(SchemaVariable) ?? DefaultSchemaName;
-  }
+    private const string ConnectionStringTemplateVariable = "Hangfire_PostgreSql_ConnectionStringTemplate";
 
-  public static string GetMasterConnectionString()
-  {
-    return string.Format(CultureInfo.InvariantCulture, GetConnectionStringTemplate(), MasterDatabaseName);
-  }
+    private const string MasterDatabaseName = "postgres";
+    private const string DefaultDatabaseName = @"hangfire_tests";
+    private const string DefaultSchemaName = @"hangfire";
 
-  public static string GetConnectionString()
-  {
-    return string.Format(CultureInfo.InvariantCulture, GetConnectionStringTemplate(), GetDatabaseName());
-  }
+    private const string DefaultConnectionStringTemplate = @"Server=127.0.0.1;Port=5432;Database=postgres;User Id=postgres;Password=password;";
 
-  private static string GetConnectionStringTemplate()
-  {
-    return Environment.GetEnvironmentVariable(ConnectionStringTemplateVariable)
-      ?? DefaultConnectionStringTemplate;
-  }
+    public static string GetDatabaseName()
+    {
+      return Environment.GetEnvironmentVariable(DatabaseVariable) ?? DefaultDatabaseName;
+    }
 
-  public static NpgsqlConnection CreateConnection()
-  {
-    NpgsqlConnectionStringBuilder csb = new(GetConnectionString());
-    PostgreSqlStorage.SetTimezoneToUtcForNpgsqlCompatibility(csb);
+    public static string GetSchemaName()
+    {
+      return Environment.GetEnvironmentVariable(SchemaVariable) ?? DefaultSchemaName;
+    }
 
-    NpgsqlConnection connection = new() {
-      ConnectionString = csb.ToString(),
-    };
-    connection.Open();
+    public static string GetMasterConnectionString()
+    {
+      return string.Format(CultureInfo.InvariantCulture, GetConnectionStringTemplate(), MasterDatabaseName);
+    }
 
-    return connection;
-  }
+    public static string GetConnectionString()
+    {
+      return string.Format(CultureInfo.InvariantCulture, GetConnectionStringTemplate(), GetDatabaseName());
+    }
 
-  public static NpgsqlConnection CreateMasterConnection()
-  {
-    NpgsqlConnectionStringBuilder csb = new(GetMasterConnectionString());
-    PostgreSqlStorage.SetTimezoneToUtcForNpgsqlCompatibility(csb);
+    private static string GetConnectionStringTemplate()
+    {
+      return Environment.GetEnvironmentVariable(ConnectionStringTemplateVariable)
+        ?? DefaultConnectionStringTemplate;
+    }
 
-    NpgsqlConnection connection = new() {
-      ConnectionString = csb.ToString(),
-    };
-    connection.Open();
+    public static NpgsqlConnection CreateConnection()
+    {
+      NpgsqlConnectionStringBuilder csb = new(GetConnectionString());
+      PostgreSqlStorage.SetTimezoneToUtcForNpgsqlCompatibility(csb);
 
-    return connection;
+      NpgsqlConnection connection = new() {
+        ConnectionString = csb.ToString(),
+      };
+      connection.Open();
+
+      return connection;
+    }
+
+    public static NpgsqlConnection CreateMasterConnection()
+    {
+      NpgsqlConnectionStringBuilder csb = new(GetMasterConnectionString());
+      PostgreSqlStorage.SetTimezoneToUtcForNpgsqlCompatibility(csb);
+
+      NpgsqlConnection connection = new() {
+        ConnectionString = csb.ToString(),
+      };
+      connection.Open();
+
+      return connection;
+    }
   }
 }

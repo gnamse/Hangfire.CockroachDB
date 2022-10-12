@@ -1,95 +1,95 @@
 ﻿using System;
 using System.Linq;
-using Hangfire.CockroachDB;
 using Moq;
 using Xunit;
 
-namespace Hangfire.CocroachDB.Tests;
-
-public class PersistentJobQueueProviderCollectionFacts
+namespace Hangfire.PostgreSql.Tests
 {
-  private static readonly string[] _queues = { "default", "critical" };
-  private readonly Mock<IPersistentJobQueueProvider> _defaultProvider;
-  private readonly Mock<IPersistentJobQueueProvider> _provider;
-
-  public PersistentJobQueueProviderCollectionFacts()
+  public class PersistentJobQueueProviderCollectionFacts
   {
-    _defaultProvider = new Mock<IPersistentJobQueueProvider>();
-    _provider = new Mock<IPersistentJobQueueProvider>();
-  }
+    private static readonly string[] _queues = { "default", "critical" };
+    private readonly Mock<IPersistentJobQueueProvider> _defaultProvider;
+    private readonly Mock<IPersistentJobQueueProvider> _provider;
 
-  [Fact]
-  public void Ctor_ThrowsAnException_WhenDefaultProviderIsNull()
-  {
-    Assert.Throws<ArgumentNullException>(() => new PersistentJobQueueProviderCollection(null));
-  }
+    public PersistentJobQueueProviderCollectionFacts()
+    {
+      _defaultProvider = new Mock<IPersistentJobQueueProvider>();
+      _provider = new Mock<IPersistentJobQueueProvider>();
+    }
 
-  [Fact]
-  public void Enumeration_IncludesTheDefaultProvider()
-  {
-    PersistentJobQueueProviderCollection collection = CreateCollection();
+    [Fact]
+    public void Ctor_ThrowsAnException_WhenDefaultProviderIsNull()
+    {
+      Assert.Throws<ArgumentNullException>(() => new PersistentJobQueueProviderCollection(null));
+    }
 
-    IPersistentJobQueueProvider[] result = collection.ToArray();
+    [Fact]
+    public void Enumeration_IncludesTheDefaultProvider()
+    {
+      PersistentJobQueueProviderCollection collection = CreateCollection();
 
-    Assert.Single(result);
-    Assert.Same(_defaultProvider.Object, result[0]);
-  }
+      IPersistentJobQueueProvider[] result = collection.ToArray();
 
-  [Fact]
-  public void GetProvider_ReturnsTheDefaultProvider_WhenProviderCanNotBeResolvedByQueue()
-  {
-    PersistentJobQueueProviderCollection collection = CreateCollection();
+      Assert.Single(result);
+      Assert.Same(_defaultProvider.Object, result[0]);
+    }
 
-    IPersistentJobQueueProvider provider = collection.GetProvider("queue");
+    [Fact]
+    public void GetProvider_ReturnsTheDefaultProvider_WhenProviderCanNotBeResolvedByQueue()
+    {
+      PersistentJobQueueProviderCollection collection = CreateCollection();
 
-    Assert.Same(_defaultProvider.Object, provider);
-  }
+      IPersistentJobQueueProvider provider = collection.GetProvider("queue");
 
-  [Fact]
-  public void Add_ThrowsAnException_WhenProviderIsNull()
-  {
-    PersistentJobQueueProviderCollection collection = CreateCollection();
+      Assert.Same(_defaultProvider.Object, provider);
+    }
 
-    ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => collection.Add(null, _queues));
+    [Fact]
+    public void Add_ThrowsAnException_WhenProviderIsNull()
+    {
+      PersistentJobQueueProviderCollection collection = CreateCollection();
 
-    Assert.Equal("provider", exception.ParamName);
-  }
+      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => collection.Add(null, _queues));
 
-  [Fact]
-  public void Add_ThrowsAnException_WhenQueuesCollectionIsNull()
-  {
-    PersistentJobQueueProviderCollection collection = CreateCollection();
+      Assert.Equal("provider", exception.ParamName);
+    }
 
-    ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => collection.Add(_provider.Object, null));
+    [Fact]
+    public void Add_ThrowsAnException_WhenQueuesCollectionIsNull()
+    {
+      PersistentJobQueueProviderCollection collection = CreateCollection();
 
-    Assert.Equal("queues", exception.ParamName);
-  }
+      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => collection.Add(_provider.Object, null));
 
-  [Fact]
-  public void Enumeration_ContainsAddedProvider()
-  {
-    PersistentJobQueueProviderCollection collection = CreateCollection();
+      Assert.Equal("queues", exception.ParamName);
+    }
 
-    collection.Add(_provider.Object, _queues);
+    [Fact]
+    public void Enumeration_ContainsAddedProvider()
+    {
+      PersistentJobQueueProviderCollection collection = CreateCollection();
 
-    Assert.Contains(_provider.Object, collection);
-  }
+      collection.Add(_provider.Object, _queues);
 
-  [Fact]
-  public void GetProvider_CanBeResolved_ByAnyQueue()
-  {
-    PersistentJobQueueProviderCollection collection = CreateCollection();
-    collection.Add(_provider.Object, _queues);
+      Assert.Contains(_provider.Object, collection);
+    }
 
-    IPersistentJobQueueProvider provider1 = collection.GetProvider("default");
-    IPersistentJobQueueProvider provider2 = collection.GetProvider("critical");
+    [Fact]
+    public void GetProvider_CanBeResolved_ByAnyQueue()
+    {
+      PersistentJobQueueProviderCollection collection = CreateCollection();
+      collection.Add(_provider.Object, _queues);
 
-    Assert.NotSame(_defaultProvider.Object, provider1);
-    Assert.Same(provider1, provider2);
-  }
+      IPersistentJobQueueProvider provider1 = collection.GetProvider("default");
+      IPersistentJobQueueProvider provider2 = collection.GetProvider("critical");
 
-  private PersistentJobQueueProviderCollection CreateCollection()
-  {
-    return new PersistentJobQueueProviderCollection(_defaultProvider.Object);
+      Assert.NotSame(_defaultProvider.Object, provider1);
+      Assert.Same(provider1, provider2);
+    }
+
+    private PersistentJobQueueProviderCollection CreateCollection()
+    {
+      return new PersistentJobQueueProviderCollection(_defaultProvider.Object);
+    }
   }
 }

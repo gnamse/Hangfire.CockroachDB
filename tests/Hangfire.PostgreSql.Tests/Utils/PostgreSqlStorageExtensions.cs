@@ -1,11 +1,10 @@
-﻿using Hangfire.CockroachDB;
-
-namespace Hangfire.CocroachDB.Tests.Utils;
-
-internal static class PostgreSqlStorageExtensions
+﻿namespace Hangfire.PostgreSql.Tests.Utils
 {
-  public static PostgreSqlConnection GetStorageConnection(this PostgreSqlStorage storage)
+  internal static class PostgreSqlStorageExtensions
   {
-    return storage.GetConnection() as PostgreSqlConnection;
+    public static PostgreSqlConnection GetStorageConnection(this PostgreSqlStorage storage)
+    {
+      return storage.GetConnection() as PostgreSqlConnection;
+    }
   }
 }

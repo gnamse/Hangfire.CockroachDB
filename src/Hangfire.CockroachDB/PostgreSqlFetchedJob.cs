@@ -1,18 +1,18 @@
-﻿// This file is part of Hangfire.PostgreSql.
-// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.PostgreSql>.
+﻿// This file is part of Hangfire.CockroachDb.
+// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.CockroachDb>.
 // 
-// Hangfire.PostgreSql is free software: you can redistribute it and/or modify
+// Hangfire.CockroachDb is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as 
 // published by the Free Software Foundation, either version 3 
 // of the License, or any later version.
 // 
-// Hangfire.PostgreSql  is distributed in the hope that it will be useful,
+// Hangfire.CockroachDb  is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 // 
 // You should have received a copy of the GNU Lesser General Public 
-// License along with Hangfire.PostgreSql. If not, see <http://www.gnu.org/licenses/>.
+// License along with Hangfire.CockroachDb. If not, see <http://www.gnu.org/licenses/>.
 //
 // This work is based on the work of Sergey Odinokov, author of 
 // Hangfire. <http://hangfire.io/>
@@ -23,66 +23,67 @@ using System;
 using Dapper;
 using Hangfire.Storage;
 
-namespace Hangfire.CockroachDB;
-
-public class PostgreSqlFetchedJob : IFetchedJob
+namespace Hangfire.PostgreSql
 {
-  private readonly PostgreSqlStorage _storage;
-  private bool _disposed;
-  private bool _removedFromQueue;
-  private bool _requeued;
-
-  public PostgreSqlFetchedJob(
-    PostgreSqlStorage storage,
-    long id,
-    string jobId,
-    string queue)
+  public class PostgreSqlFetchedJob : IFetchedJob
   {
-    _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+    private readonly PostgreSqlStorage _storage;
+    private bool _disposed;
+    private bool _removedFromQueue;
+    private bool _requeued;
 
-    Id = id;
-    JobId = jobId ?? throw new ArgumentNullException(nameof(jobId));
-    Queue = queue ?? throw new ArgumentNullException(nameof(queue));
-  }
+    public PostgreSqlFetchedJob(
+      PostgreSqlStorage storage,
+      long id,
+      string jobId,
+      string queue)
+    {
+      _storage = storage ?? throw new ArgumentNullException(nameof(storage));
 
-  public long Id { get; }
-  public string Queue { get; }
-  public string JobId { get; }
+      Id = id;
+      JobId = jobId ?? throw new ArgumentNullException(nameof(jobId));
+      Queue = queue ?? throw new ArgumentNullException(nameof(queue));
+    }
 
-  public void RemoveFromQueue()
-  {
-    _storage.UseConnection(null, connection => connection.Execute($@"
+    public long Id { get; }
+    public string Queue { get; }
+    public string JobId { get; }
+
+    public void RemoveFromQueue()
+    {
+      _storage.UseConnection(null, connection => connection.Execute($@"
         DELETE FROM ""{_storage.Options.SchemaName}"".""jobqueue"" WHERE ""id"" = @Id;
       ",
-      new { Id }));
+        new { Id }));
 
-    _removedFromQueue = true;
-  }
+      _removedFromQueue = true;
+    }
 
-  public void Requeue()
-  {
-    _storage.UseConnection(null, connection => connection.Execute($@"
+    public void Requeue()
+    {
+      _storage.UseConnection(null, connection => connection.Execute($@"
         UPDATE ""{_storage.Options.SchemaName}"".""jobqueue"" 
         SET ""fetchedat"" = NULL 
         WHERE ""id"" = @Id;
       ",
-    new { Id }));
+      new { Id }));
 
-    _requeued = true;
-  }
-
-  public void Dispose()
-  {
-    if (_disposed)
-    {
-      return;
+      _requeued = true;
     }
 
-    if (!_removedFromQueue && !_requeued)
+    public void Dispose()
     {
-      Requeue();
-    }
+      if (_disposed)
+      {
+        return;
+      }
 
-    _disposed = true;
+      if (!_removedFromQueue && !_requeued)
+      {
+        Requeue();
+      }
+
+      _disposed = true;
+    }
   }
 }

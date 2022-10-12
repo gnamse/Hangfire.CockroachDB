@@ -2,167 +2,167 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Transactions;
-using Hangfire.CockroachDB;
-using Hangfire.CocroachDB.Tests.Utils;
+using Hangfire.PostgreSql.Tests.Utils;
 using Hangfire.Server;
 using Hangfire.Storage;
 using Npgsql;
 using Xunit;
 
-namespace Hangfire.CocroachDB.Tests;
-
-public class PostgreSqlStorageFacts
+namespace Hangfire.PostgreSql.Tests
 {
-  private readonly PostgreSqlStorageOptions _options;
-
-  public PostgreSqlStorageFacts()
+  public class PostgreSqlStorageFacts
   {
-    _options = new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false, EnableTransactionScopeEnlistment = true };
-  }
+    private readonly PostgreSqlStorageOptions _options;
 
-  /// <summary>
-  /// Ideally we could enforce UTC time-zone for all connections to Hangfire Postgres (to ensure proper DateTime handling) however if the connection is being enlisted
-  /// then we cannot touch the ConnectionString in any way because otherwise this creates a new prepared transaction, which becomes aborted
-  ///
-  /// The best we can do at the moment is enforce UTC on connections initialized (and not enlisted) by Hangfire Postgres
-  /// </summary>
-  [Fact]
-  public void Connection_Timezone_Is_Set_To_UTC_For_Npgsql6_Compatibility_When_Enlistment_Not_Set()
-  {
-    // Arrange
-
-    // Turn off transaction enlistment for this test
-    // We won't be performing any queries so there is no side-effect for having this disabled
-    _options.EnableTransactionScopeEnlistment = false;
-
-    PostgreSqlStorage storage = CreateStorage();
-
-    // Act
-    using (var connection = storage.CreateAndOpenConnection())
+    public PostgreSqlStorageFacts()
     {
-      // Assert
-      Assert.Equal("UTC", connection.Timezone);
+      _options = new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false, EnableTransactionScopeEnlistment = true };
     }
-  }
 
-  [Fact]
-  public void Ctor_ThrowsAnException_WhenConnectionStringIsNull()
-  {
-    ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new PostgreSqlStorage(connectionString: null));
+    /// <summary>
+    /// Ideally we could enforce UTC time-zone for all connections to Hangfire Postgres (to ensure proper DateTime handling) however if the connection is being enlisted
+    /// then we cannot touch the ConnectionString in any way because otherwise this creates a new prepared transaction, which becomes aborted
+    ///
+    /// The best we can do at the moment is enforce UTC on connections initialized (and not enlisted) by Hangfire Postgres
+    /// </summary>
+    [Fact]
+    public void Connection_Timezone_Is_Set_To_UTC_For_Npgsql6_Compatibility_When_Enlistment_Not_Set()
+    {
+      // Arrange
 
-    Assert.Equal("connectionString", exception.ParamName);
-  }
+      // Turn off transaction enlistment for this test
+      // We won't be performing any queries so there is no side-effect for having this disabled
+      _options.EnableTransactionScopeEnlistment = false;
 
-  [Fact]
-  public void Ctor_ThrowsAnException_WhenConnectionStringIsInvalid()
-  {
-    ArgumentException exception = Assert.Throws<ArgumentException>(() => new PostgreSqlStorage("hello", new PostgreSqlStorageOptions()));
+      PostgreSqlStorage storage = CreateStorage();
+      
+      // Act
+      using (var connection = storage.CreateAndOpenConnection())
+      {
+        // Assert
+        Assert.Equal("UTC", connection.Timezone);
+      }
+    }
 
-    Assert.Equal("connectionString", exception.ParamName);
-  }
+    [Fact]
+    public void Ctor_ThrowsAnException_WhenConnectionStringIsNull()
+    {
+      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new PostgreSqlStorage(connectionString: null));
 
-  [Fact]
-  public void Ctor_ThrowsAnException_WhenOptionsValueIsNull()
-  {
-    ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new PostgreSqlStorage("hello", null));
+      Assert.Equal("connectionString", exception.ParamName);
+    }
 
-    Assert.Equal("options", exception.ParamName);
-  }
+    [Fact]
+    public void Ctor_ThrowsAnException_WhenConnectionStringIsInvalid()
+    {
+      ArgumentException exception = Assert.Throws<ArgumentException>(() => new PostgreSqlStorage("hello", new PostgreSqlStorageOptions()));
 
-  [Fact]
-  [CleanDatabase]
-  public void Ctor_CanCreateSqlServerStorage_WithExistingConnection()
-  {
-    NpgsqlConnection connection = ConnectionUtils.CreateConnection();
-    PostgreSqlStorage storage = new(connection, _options);
+      Assert.Equal("connectionString", exception.ParamName);
+    }
 
-    Assert.NotNull(storage);
-  }
+    [Fact]
+    public void Ctor_ThrowsAnException_WhenOptionsValueIsNull()
+    {
+      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new PostgreSqlStorage("hello", null));
 
-  [Fact]
-  [CleanDatabase]
-  public void Ctor_InitializesDefaultJobQueueProvider_AndPassesCorrectOptions()
-  {
-    PostgreSqlStorage storage = CreateStorage();
-    PersistentJobQueueProviderCollection providers = storage.QueueProviders;
+      Assert.Equal("options", exception.ParamName);
+    }
 
-    PostgreSqlJobQueueProvider provider = (PostgreSqlJobQueueProvider)providers.GetProvider("default");
+    [Fact]
+    [CleanDatabase]
+    public void Ctor_CanCreateSqlServerStorage_WithExistingConnection()
+    {
+      NpgsqlConnection connection = ConnectionUtils.CreateConnection();
+      PostgreSqlStorage storage = new(connection, _options);
 
-    Assert.Same(_options, provider.Options);
-  }
+      Assert.NotNull(storage);
+    }
 
-  [Fact]
-  [CleanDatabase]
-  public void GetMonitoringApi_ReturnsNonNullInstance()
-  {
-    PostgreSqlStorage storage = CreateStorage();
-    IMonitoringApi api = storage.GetMonitoringApi();
-    Assert.NotNull(api);
-  }
+    [Fact]
+    [CleanDatabase]
+    public void Ctor_InitializesDefaultJobQueueProvider_AndPassesCorrectOptions()
+    {
+      PostgreSqlStorage storage = CreateStorage();
+      PersistentJobQueueProviderCollection providers = storage.QueueProviders;
 
-  [Fact]
-  [CleanDatabase]
-  public void GetComponents_ReturnsAllNeededComponents()
-  {
-    PostgreSqlStorage storage = CreateStorage();
+      PostgreSqlJobQueueProvider provider = (PostgreSqlJobQueueProvider)providers.GetProvider("default");
 
-    IEnumerable<IServerComponent> components = storage.GetComponents();
+      Assert.Same(_options, provider.Options);
+    }
 
-    Type[] componentTypes = components.Select(x => x.GetType()).ToArray();
-    Assert.Contains(typeof(ExpirationManager), componentTypes);
-  }
+    [Fact]
+    [CleanDatabase]
+    public void GetMonitoringApi_ReturnsNonNullInstance()
+    {
+      PostgreSqlStorage storage = CreateStorage();
+      IMonitoringApi api = storage.GetMonitoringApi();
+      Assert.NotNull(api);
+    }
 
-  [Fact]
-  public void Ctor_ThrowsAnException_WhenConnectionFactoryIsNull()
-  {
-    ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new PostgreSqlStorage(connectionFactory: null, new PostgreSqlStorageOptions()));
-    Assert.Equal("connectionFactory", exception.ParamName);
-  }
+    [Fact]
+    [CleanDatabase]
+    public void GetComponents_ReturnsAllNeededComponents()
+    {
+      PostgreSqlStorage storage = CreateStorage();
 
-  [Fact]
-  [CleanDatabase]
-  public void Ctor_CanCreateSqlServerStorage_WithExistingConnectionFactory()
-  {
-    PostgreSqlStorage storage = new(new DefaultConnectionFactory(), _options);
-    Assert.NotNull(storage);
-  }
+      IEnumerable<IServerComponent> components = storage.GetComponents();
 
-  [Fact]
-  [CleanDatabase]
-  public void CanCreateAndOpenConnection_WithExistingConnectionFactory()
-  {
-    PostgreSqlStorage storage = new(new DefaultConnectionFactory(), _options);
-    NpgsqlConnection connection = storage.CreateAndOpenConnection();
-    Assert.NotNull(connection);
-  }
+      Type[] componentTypes = components.Select(x => x.GetType()).ToArray();
+      Assert.Contains(typeof(ExpirationManager), componentTypes);
+    }
 
-  [Fact]
-  public void CreateAndOpenConnection_ThrowsAnException_WithExistingConnectionFactoryAndInvalidOptions()
-  {
-    PostgreSqlStorageOptions option = new() {
-      EnableTransactionScopeEnlistment = false,
-      PrepareSchemaIfNecessary = false,
-    };
-    PostgreSqlStorage storage = new(new DefaultConnectionFactory(), option);
-    Assert.Throws<ArgumentException>(() => storage.CreateAndOpenConnection());
-  }
+    [Fact]
+    public void Ctor_ThrowsAnException_WhenConnectionFactoryIsNull()
+    {
+      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new PostgreSqlStorage(connectionFactory: null, new PostgreSqlStorageOptions()));
+      Assert.Equal("connectionFactory", exception.ParamName);
+    }
 
-  [Fact]
-  public void CanUseTransaction_WithDifferentTransactionIsolationLevel()
-  {
-    using TransactionScope scope = new(TransactionScopeOption.Required,
-      new TransactionOptions() { IsolationLevel = IsolationLevel.Serializable });
+    [Fact]
+    [CleanDatabase]
+    public void Ctor_CanCreateSqlServerStorage_WithExistingConnectionFactory()
+    {
+      PostgreSqlStorage storage = new(new DefaultConnectionFactory(), _options);
+      Assert.NotNull(storage);
+    }
 
-    PostgreSqlStorage storage = new(new DefaultConnectionFactory(), _options);
-    NpgsqlConnection connection = storage.CreateAndOpenConnection();
+    [Fact]
+    [CleanDatabase]
+    public void CanCreateAndOpenConnection_WithExistingConnectionFactory()
+    {
+      PostgreSqlStorage storage = new(new DefaultConnectionFactory(), _options);
+      NpgsqlConnection connection = storage.CreateAndOpenConnection();
+      Assert.NotNull(connection);
+    }
 
-    bool success = storage.UseTransaction(connection, (_, _) => true);
+    [Fact]
+    public void CreateAndOpenConnection_ThrowsAnException_WithExistingConnectionFactoryAndInvalidOptions()
+    {
+      PostgreSqlStorageOptions option = new() {
+        EnableTransactionScopeEnlistment = false,
+        PrepareSchemaIfNecessary = false,
+      };
+      PostgreSqlStorage storage = new(new DefaultConnectionFactory(), option);
+      Assert.Throws<ArgumentException>(() => storage.CreateAndOpenConnection());
+    }
 
-    Assert.True(success);
-  }
+    [Fact]
+    public void CanUseTransaction_WithDifferentTransactionIsolationLevel()
+    {
+      using TransactionScope scope = new(TransactionScopeOption.Required,
+        new TransactionOptions() { IsolationLevel = IsolationLevel.Serializable });
+      
+      PostgreSqlStorage storage = new(new DefaultConnectionFactory(), _options);
+      NpgsqlConnection connection = storage.CreateAndOpenConnection();
+      
+      bool success = storage.UseTransaction(connection, (_, _) => true);
+      
+      Assert.True(success);
+    }
 
-  private PostgreSqlStorage CreateStorage()
-  {
-    return new PostgreSqlStorage(ConnectionUtils.GetConnectionString(), _options);
+    private PostgreSqlStorage CreateStorage()
+    {
+      return new PostgreSqlStorage(ConnectionUtils.GetConnectionString(), _options);
+    }
   }
 }

@@ -1,18 +1,18 @@
-﻿// This file is part of Hangfire.PostgreSql.
-// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.PostgreSql>.
+﻿// This file is part of Hangfire.CockroachDb.
+// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.CockroachDb>.
 // 
-// Hangfire.PostgreSql is free software: you can redistribute it and/or modify
+// Hangfire.CockroachDb is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as 
 // published by the Free Software Foundation, either version 3 
 // of the License, or any later version.
 // 
-// Hangfire.PostgreSql  is distributed in the hope that it will be useful,
+// Hangfire.CockroachDb  is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 // 
 // You should have received a copy of the GNU Lesser General Public 
-// License along with Hangfire.PostgreSql. If not, see <http://www.gnu.org/licenses/>.
+// License along with Hangfire.CockroachDb. If not, see <http://www.gnu.org/licenses/>.
 //
 // This work is based on the work of Sergey Odinokov, author of 
 // Hangfire. <http://hangfire.io/>
@@ -24,36 +24,36 @@ using System.Collections.Generic;
 using System.Linq;
 using Dapper;
 
-namespace Hangfire.CockroachDB;
-
-internal class PostgreSqlJobQueueMonitoringApi : IPersistentJobQueueMonitoringApi
+namespace Hangfire.PostgreSql
 {
-  private readonly PostgreSqlStorage _storage;
-
-  public PostgreSqlJobQueueMonitoringApi(PostgreSqlStorage storage)
+  internal class PostgreSqlJobQueueMonitoringApi : IPersistentJobQueueMonitoringApi
   {
-    _storage = storage ?? throw new ArgumentNullException(nameof(storage));
-  }
+    private readonly PostgreSqlStorage _storage;
 
-  public IEnumerable<string> GetQueues()
-  {
-    string sqlQuery = $@"SELECT DISTINCT ""queue"" FROM ""{_storage.Options.SchemaName}"".""jobqueue""";
-    return _storage.UseConnection(null, connection => connection.Query<string>(sqlQuery).ToList());
-  }
+    public PostgreSqlJobQueueMonitoringApi(PostgreSqlStorage storage)
+    {
+      _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+    }
 
-  public IEnumerable<long> GetEnqueuedJobIds(string queue, int from, int perPage)
-  {
-    return GetQueuedOrFetchedJobIds(queue, false, from, perPage);
-  }
+    public IEnumerable<string> GetQueues()
+    {
+      string sqlQuery = $@"SELECT DISTINCT ""queue"" FROM ""{_storage.Options.SchemaName}"".""jobqueue""";
+      return _storage.UseConnection(null, connection => connection.Query<string>(sqlQuery).ToList());
+    }
 
-  public IEnumerable<long> GetFetchedJobIds(string queue, int from, int perPage)
-  {
-    return GetQueuedOrFetchedJobIds(queue, true, from, perPage);
-  }
+    public IEnumerable<long> GetEnqueuedJobIds(string queue, int from, int perPage)
+    {
+      return GetQueuedOrFetchedJobIds(queue, false, from, perPage);
+    }
 
-  public EnqueuedAndFetchedCountDto GetEnqueuedAndFetchedCount(string queue)
-  {
-    string sqlQuery = $@"
+    public IEnumerable<long> GetFetchedJobIds(string queue, int from, int perPage)
+    {
+      return GetQueuedOrFetchedJobIds(queue, true, from, perPage);
+    }
+
+    public EnqueuedAndFetchedCountDto GetEnqueuedAndFetchedCount(string queue)
+    {
+      string sqlQuery = $@"
         SELECT (
             SELECT COUNT(*) 
             FROM ""{_storage.Options.SchemaName}"".""jobqueue"" 
@@ -68,18 +68,18 @@ internal class PostgreSqlJobQueueMonitoringApi : IPersistentJobQueueMonitoringAp
         ) ""FetchedCount"";
       ";
 
-    (long enqueuedCount, long fetchedCount) = _storage.UseConnection(null, connection =>
-      connection.QuerySingle<(long EnqueuedCount, long FetchedCount)>(sqlQuery, new { Queue = queue }));
+      (long enqueuedCount, long fetchedCount) = _storage.UseConnection(null, connection => 
+        connection.QuerySingle<(long EnqueuedCount, long FetchedCount)>(sqlQuery, new { Queue = queue }));
 
-    return new EnqueuedAndFetchedCountDto {
-      EnqueuedCount = enqueuedCount,
-      FetchedCount = fetchedCount,
-    };
-  }
+      return new EnqueuedAndFetchedCountDto {
+        EnqueuedCount = enqueuedCount,
+        FetchedCount = fetchedCount,
+      };
+    }
 
-  private IEnumerable<long> GetQueuedOrFetchedJobIds(string queue, bool fetched, int from, int perPage)
-  {
-    string sqlQuery = $@"
+    private IEnumerable<long> GetQueuedOrFetchedJobIds(string queue, bool fetched, int from, int perPage)
+    {
+      string sqlQuery = $@"
         SELECT j.""id"" 
         FROM ""{_storage.Options.SchemaName}"".""jobqueue"" jq
         LEFT JOIN ""{_storage.Options.SchemaName}"".""job"" j ON jq.""jobid"" = j.""id""
@@ -89,8 +89,9 @@ internal class PostgreSqlJobQueueMonitoringApi : IPersistentJobQueueMonitoringAp
         LIMIT @Limit OFFSET @Offset;
       ";
 
-    return _storage.UseConnection(null, connection => connection.Query<long>(sqlQuery,
-        new { Queue = queue, Offset = from, Limit = perPage })
-      .ToList());
+      return _storage.UseConnection(null, connection => connection.Query<long>(sqlQuery,
+          new { Queue = queue, Offset = from, Limit = perPage })
+        .ToList());
+    }
   }
 }

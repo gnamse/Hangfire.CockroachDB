@@ -1,18 +1,18 @@
-﻿// This file is part of Hangfire.PostgreSql.
-// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.PostgreSql>.
+﻿// This file is part of Hangfire.CockroachDb.
+// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.CockroachDb>.
 // 
-// Hangfire.PostgreSql is free software: you can redistribute it and/or modify
+// Hangfire.CockroachDb is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as 
 // published by the Free Software Foundation, either version 3 
 // of the License, or any later version.
 // 
-// Hangfire.PostgreSql  is distributed in the hope that it will be useful,
+// Hangfire.CockroachDb  is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 // 
 // You should have received a copy of the GNU Lesser General Public 
-// License along with Hangfire.PostgreSql. If not, see <http://www.gnu.org/licenses/>.
+// License along with Hangfire.CockroachDb. If not, see <http://www.gnu.org/licenses/>.
 //
 // This work is based on the work of Sergey Odinokov, author of 
 // Hangfire. <http://hangfire.io/>
@@ -32,82 +32,82 @@ using Hangfire.States;
 using Hangfire.Storage;
 using IsolationLevel = System.Transactions.IsolationLevel;
 
-namespace Hangfire.CockroachDB;
-
-public class PostgreSqlWriteOnlyTransaction : JobStorageTransaction
+namespace Hangfire.PostgreSql
 {
-  private readonly Queue<Action<IDbConnection>> _commandQueue = new();
-  private readonly Func<DbConnection> _dedicatedConnectionFunc;
-
-  private readonly PostgreSqlStorage _storage;
-
-  public PostgreSqlWriteOnlyTransaction(
-    PostgreSqlStorage storage,
-    Func<DbConnection> dedicatedConnectionFunc)
+  public class PostgreSqlWriteOnlyTransaction : JobStorageTransaction
   {
-    _storage = storage ?? throw new ArgumentNullException(nameof(storage));
-    _dedicatedConnectionFunc = dedicatedConnectionFunc ?? throw new ArgumentNullException(nameof(dedicatedConnectionFunc));
-  }
+    private readonly Queue<Action<IDbConnection>> _commandQueue = new();
+    private readonly Func<DbConnection> _dedicatedConnectionFunc;
 
-  public override void Commit()
-  {
-    _storage.UseTransaction(_dedicatedConnectionFunc(), (connection, _) => {
-      foreach (Action<IDbConnection> command in _commandQueue)
-      {
-        command(connection);
-      }
-    }, CreateTransactionScope);
-  }
+    private readonly PostgreSqlStorage _storage;
 
-  private TransactionScope CreateTransactionScope()
-  {
-    IsolationLevel isolationLevel = IsolationLevel.ReadCommitted;
-    TransactionScopeOption scopeOption = TransactionScopeOption.RequiresNew;
-    if (_storage.Options.EnableTransactionScopeEnlistment)
+    public PostgreSqlWriteOnlyTransaction(
+      PostgreSqlStorage storage,
+      Func<DbConnection> dedicatedConnectionFunc)
     {
-      Transaction currentTransaction = Transaction.Current;
-      if (currentTransaction != null)
-      {
-        isolationLevel = currentTransaction.IsolationLevel;
-        scopeOption = TransactionScopeOption.Required;
-      }
+      _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+      _dedicatedConnectionFunc = dedicatedConnectionFunc ?? throw new ArgumentNullException(nameof(dedicatedConnectionFunc));
     }
 
-    TransactionOptions transactionOptions = new() {
-      IsolationLevel = isolationLevel,
-      Timeout = TransactionManager.MaximumTimeout,
-    };
+    public override void Commit()
+    {
+      _storage.UseTransaction(_dedicatedConnectionFunc(), (connection, _) => {
+        foreach (Action<IDbConnection> command in _commandQueue)
+        {
+          command(connection);
+        }
+      }, CreateTransactionScope);
+    }
 
-    return new TransactionScope(scopeOption, transactionOptions);
-  }
+    private TransactionScope CreateTransactionScope()
+    {
+      IsolationLevel isolationLevel = IsolationLevel.ReadCommitted;
+      TransactionScopeOption scopeOption = TransactionScopeOption.RequiresNew;
+      if (_storage.Options.EnableTransactionScopeEnlistment)
+      {
+        Transaction currentTransaction = Transaction.Current;
+        if (currentTransaction != null)
+        {
+          isolationLevel = currentTransaction.IsolationLevel;
+          scopeOption = TransactionScopeOption.Required;
+        }
+      }
 
-  public override void ExpireJob(string jobId, TimeSpan expireIn)
-  {
-    string sql = $@"
+      TransactionOptions transactionOptions = new() {
+        IsolationLevel = isolationLevel,
+        Timeout = TransactionManager.MaximumTimeout,
+      };
+
+      return new TransactionScope(scopeOption, transactionOptions);
+    }
+
+    public override void ExpireJob(string jobId, TimeSpan expireIn)
+    {
+      string sql = $@"
         UPDATE ""{_storage.Options.SchemaName}"".""job""
         SET ""expireat"" = NOW() AT TIME ZONE 'UTC' + INTERVAL '{(long)expireIn.TotalSeconds} SECONDS'
         WHERE ""id"" = @Id;
       ";
 
-    QueueCommand(con => con.Execute(sql,
-      new { Id = Convert.ToInt64(jobId, CultureInfo.InvariantCulture) }));
-  }
+      QueueCommand(con => con.Execute(sql,
+        new { Id = Convert.ToInt64(jobId, CultureInfo.InvariantCulture) }));
+    }
 
-  public override void PersistJob(string jobId)
-  {
-    string sql = $@"
+    public override void PersistJob(string jobId)
+    {
+      string sql = $@"
         UPDATE ""{_storage.Options.SchemaName}"".""job"" 
         SET ""expireat"" = NULL 
         WHERE ""id"" = @Id;
       ";
 
-    QueueCommand(con => con.Execute(sql,
-      new { Id = Convert.ToInt64(jobId, CultureInfo.InvariantCulture) }));
-  }
+      QueueCommand(con => con.Execute(sql,
+        new { Id = Convert.ToInt64(jobId, CultureInfo.InvariantCulture) }));
+    }
 
-  public override void SetJobState(string jobId, IState state)
-  {
-    string addAndSetStateSql = $@"
+    public override void SetJobState(string jobId, IState state)
+    {
+      string addAndSetStateSql = $@"
         WITH ""s"" AS (
             INSERT INTO ""{_storage.Options.SchemaName}"".""state"" (""jobid"", ""name"", ""reason"", ""createdat"", ""data"")
             VALUES (@JobId, @Name, @Reason, @CreatedAt, @Data) RETURNING ""id""
@@ -118,129 +118,129 @@ public class PostgreSqlWriteOnlyTransaction : JobStorageTransaction
         WHERE ""j"".""id"" = @Id;
       ";
 
-    QueueCommand(con => con.Execute(addAndSetStateSql,
-      new {
-        JobId = Convert.ToInt64(jobId, CultureInfo.InvariantCulture),
-        state.Name,
-        state.Reason,
-        CreatedAt = DateTime.UtcNow,
-        Data = SerializationHelper.Serialize(state.SerializeData()),
-        Id = Convert.ToInt64(jobId, CultureInfo.InvariantCulture),
-      }));
-  }
+      QueueCommand(con => con.Execute(addAndSetStateSql,
+        new {
+          JobId = Convert.ToInt64(jobId, CultureInfo.InvariantCulture),
+          state.Name,
+          state.Reason,
+          CreatedAt = DateTime.UtcNow,
+          Data = SerializationHelper.Serialize(state.SerializeData()),
+          Id = Convert.ToInt64(jobId, CultureInfo.InvariantCulture),
+        }));
+    }
 
-  public override void AddJobState(string jobId, IState state)
-  {
-    string addStateSql = $@"
+    public override void AddJobState(string jobId, IState state)
+    {
+      string addStateSql = $@"
         INSERT INTO ""{_storage.Options.SchemaName}"".""state"" (""jobid"", ""name"", ""reason"", ""createdat"", ""data"")
         VALUES (@JobId, @Name, @Reason, @CreatedAt, @Data);
       ";
 
-    QueueCommand(con => con.Execute(addStateSql,
-      new {
-        JobId = Convert.ToInt64(jobId, CultureInfo.InvariantCulture),
-        state.Name,
-        state.Reason,
-        CreatedAt = DateTime.UtcNow,
-        Data = SerializationHelper.Serialize(state.SerializeData()),
-      }));
-  }
+      QueueCommand(con => con.Execute(addStateSql,
+        new {
+          JobId = Convert.ToInt64(jobId, CultureInfo.InvariantCulture),
+          state.Name,
+          state.Reason,
+          CreatedAt = DateTime.UtcNow,
+          Data = SerializationHelper.Serialize(state.SerializeData()),
+        }));
+    }
 
-  public override void AddToQueue(string queue, string jobId)
-  {
-    IPersistentJobQueueProvider provider = _storage.QueueProviders.GetProvider(queue);
-    IPersistentJobQueue persistentQueue = provider.GetJobQueue();
+    public override void AddToQueue(string queue, string jobId)
+    {
+      IPersistentJobQueueProvider provider = _storage.QueueProviders.GetProvider(queue);
+      IPersistentJobQueue persistentQueue = provider.GetJobQueue();
 
-    QueueCommand(con => persistentQueue.Enqueue(con, queue, jobId));
-  }
+      QueueCommand(con => persistentQueue.Enqueue(con, queue, jobId));
+    }
 
-  public override void IncrementCounter(string key)
-  {
-    string sql = $@"
+    public override void IncrementCounter(string key)
+    {
+      string sql = $@"
         INSERT INTO ""{_storage.Options.SchemaName}"".""counter"" (""key"", ""value"") 
         VALUES (@Key, @Value);
       ";
-    QueueCommand(con => con.Execute(sql,
-      new { Key = key, Value = +1 }));
-  }
+      QueueCommand(con => con.Execute(sql,
+        new { Key = key, Value = +1 }));
+    }
 
-  public override void IncrementCounter(string key, TimeSpan expireIn)
-  {
-    string sql = $@"
+    public override void IncrementCounter(string key, TimeSpan expireIn)
+    {
+      string sql = $@"
         INSERT INTO ""{_storage.Options.SchemaName}"".""counter""(""key"", ""value"", ""expireat"") 
         VALUES (@Key, @Value, NOW() AT TIME ZONE 'UTC' + INTERVAL '{(long)expireIn.TotalSeconds} SECONDS');
       ";
-    QueueCommand(con => con.Execute(sql,
-      new { Key = key, Value = +1 }));
-  }
+      QueueCommand(con => con.Execute(sql,
+        new { Key = key, Value = +1 }));
+    }
 
-  public override void DecrementCounter(string key)
-  {
-    string sql = $@"
+    public override void DecrementCounter(string key)
+    {
+      string sql = $@"
         INSERT INTO ""{_storage.Options.SchemaName}"".""counter"" (""key"", ""value"") 
         VALUES (@Key, @Value);
       ";
-    QueueCommand(con => con.Execute(sql,
-      new { Key = key, Value = -1 }));
-  }
+      QueueCommand(con => con.Execute(sql,
+        new { Key = key, Value = -1 }));
+    }
 
-  public override void DecrementCounter(string key, TimeSpan expireIn)
-  {
-    string sql = $@"
+    public override void DecrementCounter(string key, TimeSpan expireIn)
+    {
+      string sql = $@"
         INSERT INTO ""{_storage.Options.SchemaName}"".""counter""(""key"", ""value"", ""expireat"") 
         VALUES (@Key, @Value, NOW() AT TIME ZONE 'UTC' + INTERVAL '{((long)expireIn.TotalSeconds).ToString(CultureInfo.InvariantCulture)} SECONDS');
       ";
-    QueueCommand(con => con.Execute(sql, new { Key = key, Value = -1 }));
-  }
+      QueueCommand(con => con.Execute(sql, new { Key = key, Value = -1 }));
+    }
 
-  public override void AddToSet(string key, string value)
-  {
-    AddToSet(key, value, 0.0);
-  }
+    public override void AddToSet(string key, string value)
+    {
+      AddToSet(key, value, 0.0);
+    }
 
-  public override void AddToSet(string key, string value, double score)
-  {
-    string addSql = $@"
+    public override void AddToSet(string key, string value, double score)
+    {
+      string addSql = $@"
         INSERT INTO ""{_storage.Options.SchemaName}"".""set""(""key"", ""value"", ""score"")
         VALUES(@Key, @Value, @Score)
         ON CONFLICT (""key"", ""value"")
         DO UPDATE SET ""score"" = EXCLUDED.""score""
       ";
-    QueueCommand(con => con.Execute(addSql,
-      new { Key = key, Value = value, Score = score }));
-  }
+      QueueCommand(con => con.Execute(addSql,
+        new { Key = key, Value = value, Score = score }));
+    }
 
-  public override void RemoveFromSet(string key, string value)
-  {
-    QueueCommand(con => con.Execute($@"
+    public override void RemoveFromSet(string key, string value)
+    {
+      QueueCommand(con => con.Execute($@"
         DELETE FROM ""{_storage.Options.SchemaName}"".""set"" 
         WHERE ""key"" = @Key 
         AND ""value"" = @Value;
       ",
-    new { Key = key, Value = value }));
-  }
+      new { Key = key, Value = value }));
+    }
 
-  public override void InsertToList(string key, string value)
-  {
-    QueueCommand(con => con.Execute($@"
+    public override void InsertToList(string key, string value)
+    {
+      QueueCommand(con => con.Execute($@"
         INSERT INTO ""{_storage.Options.SchemaName}"".""list"" (""key"", ""value"") 
         VALUES (@Key, @Value);
       ",
-    new { Key = key, Value = value }));
-  }
+      new { Key = key, Value = value }));
+    }
 
-  public override void RemoveFromList(string key, string value)
-  {
-    QueueCommand(con => con.Execute($@"
+    public override void RemoveFromList(string key, string value)
+    {
+      QueueCommand(con => con.Execute($@"
         DELETE FROM ""{_storage.Options.SchemaName}"".""list"" 
         WHERE ""key"" = @Key 
         AND ""value"" = @Value;
       ", new { Key = key, Value = value }));
-  }
+    }
 
-  public override void TrimList(string key, int keepStartingFrom, int keepEndingAt)
-  {
-    string trimSql = $@"
+    public override void TrimList(string key, int keepStartingFrom, int keepEndingAt)
+    {
+      string trimSql = $@"
         DELETE FROM ""{_storage.Options.SchemaName}"".""list"" AS source
         WHERE ""key"" = @Key
         AND ""id"" NOT IN (
@@ -252,23 +252,23 @@ public class PostgreSqlWriteOnlyTransaction : JobStorageTransaction
         );
       ";
 
-    QueueCommand(con => con.Execute(trimSql,
-      new { Key = key, Offset = keepStartingFrom, Limit = keepEndingAt - keepStartingFrom + 1 }));
-  }
-
-  public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
-  {
-    if (key == null)
-    {
-      throw new ArgumentNullException(nameof(key));
+      QueueCommand(con => con.Execute(trimSql,
+        new { Key = key, Offset = keepStartingFrom, Limit = keepEndingAt - keepStartingFrom + 1 }));
     }
 
-    if (keyValuePairs == null)
+    public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
     {
-      throw new ArgumentNullException(nameof(keyValuePairs));
-    }
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
 
-    string sql = $@"
+      if (keyValuePairs == null)
+      {
+        throw new ArgumentNullException(nameof(keyValuePairs));
+      }
+
+      string sql = $@"
         WITH ""inputvalues"" AS (
 	        SELECT @Key ""key"", @Field ""field"", @Value ""value""
         ), ""updatedrows"" AS ( 
@@ -289,133 +289,134 @@ public class PostgreSqlWriteOnlyTransaction : JobStorageTransaction
 	        AND ""updatedrows"".""field"" = ""insertvalues"".""field""
         );
       ";
-    foreach (KeyValuePair<string, string> keyValuePair in keyValuePairs)
-    {
-      KeyValuePair<string, string> pair = keyValuePair;
-      QueueCommand(con => con.Execute(sql, new { Key = key, Field = pair.Key, pair.Value }));
-    }
-  }
-
-  public override void RemoveHash(string key)
-  {
-    if (key == null)
-    {
-      throw new ArgumentNullException(nameof(key));
+      foreach (KeyValuePair<string, string> keyValuePair in keyValuePairs)
+      {
+        KeyValuePair<string, string> pair = keyValuePair;
+        QueueCommand(con => con.Execute(sql, new { Key = key, Field = pair.Key, pair.Value }));
+      }
     }
 
-    string sql = $@"DELETE FROM ""{_storage.Options.SchemaName}"".""hash"" WHERE ""key"" = @Key";
-    QueueCommand(con => con.Execute(sql,
-      new { Key = key }));
-  }
-
-  public override void ExpireSet(string key, TimeSpan expireIn)
-  {
-    if (key == null)
+    public override void RemoveHash(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string sql = $@"DELETE FROM ""{_storage.Options.SchemaName}"".""hash"" WHERE ""key"" = @Key";
+      QueueCommand(con => con.Execute(sql,
+        new { Key = key }));
     }
 
-    string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""set"" SET ""expireat"" = @ExpireAt WHERE ""key"" = @Key";
-
-    QueueCommand(connection => connection.Execute(sql,
-      new { Key = key, ExpireAt = DateTime.UtcNow.Add(expireIn) }));
-  }
-
-  public override void ExpireList(string key, TimeSpan expireIn)
-  {
-    if (key == null)
+    public override void ExpireSet(string key, TimeSpan expireIn)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""set"" SET ""expireat"" = @ExpireAt WHERE ""key"" = @Key";
+
+      QueueCommand(connection => connection.Execute(sql,
+        new { Key = key, ExpireAt = DateTime.UtcNow.Add(expireIn) }));
     }
 
-    string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""list"" SET ""expireat"" = @ExpireAt WHERE ""key"" = @Key";
-
-    QueueCommand(connection => connection.Execute(sql,
-      new { Key = key, ExpireAt = DateTime.UtcNow.Add(expireIn) }));
-  }
-
-  public override void ExpireHash(string key, TimeSpan expireIn)
-  {
-    if (key == null)
+    public override void ExpireList(string key, TimeSpan expireIn)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""list"" SET ""expireat"" = @ExpireAt WHERE ""key"" = @Key";
+
+      QueueCommand(connection => connection.Execute(sql,
+        new { Key = key, ExpireAt = DateTime.UtcNow.Add(expireIn) }));
     }
 
-    string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""hash"" SET expireat = @ExpireAt WHERE ""key"" = @Key";
-
-    QueueCommand(connection => connection.Execute(sql,
-      new { Key = key, ExpireAt = DateTime.UtcNow.Add(expireIn) }));
-  }
-
-  public override void PersistSet(string key)
-  {
-    if (key == null)
+    public override void ExpireHash(string key, TimeSpan expireIn)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""hash"" SET expireat = @ExpireAt WHERE ""key"" = @Key";
+
+      QueueCommand(connection => connection.Execute(sql,
+        new { Key = key, ExpireAt = DateTime.UtcNow.Add(expireIn) }));
     }
 
-    string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""set"" SET expireat = null WHERE ""key"" = @Key";
-
-    QueueCommand(connection => connection.Execute(sql, new { Key = key }));
-  }
-
-  public override void PersistList(string key)
-  {
-    if (key == null)
+    public override void PersistSet(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""set"" SET expireat = null WHERE ""key"" = @Key";
+
+      QueueCommand(connection => connection.Execute(sql, new { Key = key }));
     }
 
-    string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""list"" SET expireat = null WHERE ""key"" = @Key";
-
-    QueueCommand(connection => connection.Execute(sql, new { Key = key }));
-  }
-
-  public override void PersistHash(string key)
-  {
-    if (key == null)
+    public override void PersistList(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""list"" SET expireat = null WHERE ""key"" = @Key";
+
+      QueueCommand(connection => connection.Execute(sql, new { Key = key }));
     }
 
-    string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""hash"" SET expireat = null WHERE ""key"" = @Key";
-
-    QueueCommand(connection => connection.Execute(sql,
-      new { Key = key }));
-  }
-
-  public override void AddRangeToSet(string key, IList<string> items)
-  {
-    if (key == null)
+    public override void PersistHash(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string sql = $@"UPDATE ""{_storage.Options.SchemaName}"".""hash"" SET expireat = null WHERE ""key"" = @Key";
+
+      QueueCommand(connection => connection.Execute(sql,
+        new { Key = key }));
     }
 
-    if (items == null)
+    public override void AddRangeToSet(string key, IList<string> items)
     {
-      throw new ArgumentNullException(nameof(items));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      if (items == null)
+      {
+        throw new ArgumentNullException(nameof(items));
+      }
+
+      string sql = $@"INSERT INTO ""{_storage.Options.SchemaName}"".""set"" (""key"", ""value"", ""score"") VALUES (@Key, @Value, 0.0)";
+
+      QueueCommand(connection => connection.Execute(sql,
+        items.Select(value => new { Key = key, Value = value }).ToList()));
     }
 
-    string sql = $@"INSERT INTO ""{_storage.Options.SchemaName}"".""set"" (""key"", ""value"", ""score"") VALUES (@Key, @Value, 0.0)";
-
-    QueueCommand(connection => connection.Execute(sql,
-      items.Select(value => new { Key = key, Value = value }).ToList()));
-  }
-
-  public override void RemoveSet(string key)
-  {
-    if (key == null)
+    public override void RemoveSet(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string sql = $@"DELETE FROM ""{_storage.Options.SchemaName}"".""set"" WHERE ""key"" = @Key";
+
+      QueueCommand(connection => connection.Execute(sql, new { Key = key }));
     }
 
-    string sql = $@"DELETE FROM ""{_storage.Options.SchemaName}"".""set"" WHERE ""key"" = @Key";
-
-    QueueCommand(connection => connection.Execute(sql, new { Key = key }));
-  }
-
-  internal void QueueCommand(Action<IDbConnection> action)
-  {
-    _commandQueue.Enqueue(action);
+    internal void QueueCommand(Action<IDbConnection> action)
+    {
+      _commandQueue.Enqueue(action);
+    }
   }
 }

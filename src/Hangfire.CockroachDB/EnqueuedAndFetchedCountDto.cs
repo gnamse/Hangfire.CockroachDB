@@ -1,28 +1,29 @@
-// This file is part of Hangfire.PostgreSql.
-// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.PostgreSql>.
+// This file is part of Hangfire.CockroachDb.
+// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.CockroachDb>.
 // 
-// Hangfire.PostgreSql is free software: you can redistribute it and/or modify
+// Hangfire.CockroachDb is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as 
 // published by the Free Software Foundation, either version 3 
 // of the License, or any later version.
 // 
-// Hangfire.PostgreSql  is distributed in the hope that it will be useful,
+// Hangfire.CockroachDb  is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 // 
 // You should have received a copy of the GNU Lesser General Public 
-// License along with Hangfire.PostgreSql. If not, see <http://www.gnu.org/licenses/>.
+// License along with Hangfire.CockroachDb. If not, see <http://www.gnu.org/licenses/>.
 //
 // This work is based on the work of Sergey Odinokov, author of 
 // Hangfire. <http://hangfire.io/>
 //   
 //    Special thanks goes to him.
 
-namespace Hangfire.CockroachDB;
-
-public class EnqueuedAndFetchedCountDto
+namespace Hangfire.PostgreSql
 {
-  public long EnqueuedCount { get; set; }
-  public long FetchedCount { get; set; }
+  public class EnqueuedAndFetchedCountDto
+  {
+    public long EnqueuedCount { get; set; }
+    public long FetchedCount { get; set; }
+  }
 }

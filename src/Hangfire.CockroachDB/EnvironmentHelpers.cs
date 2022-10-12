@@ -1,13 +1,14 @@
 ﻿using System;
 
-namespace Hangfire.CockroachDB;
-
-internal class EnvironmentHelpers
+namespace Hangfire.PostgreSql
 {
-  private static bool? _isMono;
-
-  public static bool IsMono()
+  internal class EnvironmentHelpers
   {
-    return _isMono ??= Type.GetType("Mono.Runtime") != null;
+    private static bool? _isMono;
+
+    public static bool IsMono()
+    {
+      return _isMono ??= Type.GetType("Mono.Runtime") != null;
+    }
   }
 }

@@ -1,18 +1,18 @@
-﻿// This file is part of Hangfire.PostgreSql.
-// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.PostgreSql>.
+﻿// This file is part of Hangfire.CockroachDb.
+// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.CockroachDb>.
 // 
-// Hangfire.PostgreSql is free software: you can redistribute it and/or modify
+// Hangfire.CockroachDb is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as 
 // published by the Free Software Foundation, either version 3 
 // of the License, or any later version.
 // 
-// Hangfire.PostgreSql  is distributed in the hope that it will be useful,
+// Hangfire.CockroachDb  is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 // 
 // You should have received a copy of the GNU Lesser General Public 
-// License along with Hangfire.PostgreSql. If not, see <http://www.gnu.org/licenses/>.
+// License along with Hangfire.CockroachDb. If not, see <http://www.gnu.org/licenses/>.
 //
 // This work is based on the work of Sergey Odinokov, author of 
 // Hangfire. <http://hangfire.io/>
@@ -21,26 +21,27 @@
 
 using System;
 
-namespace Hangfire.CockroachDB;
-
-public class PostgreSqlJobQueueProvider : IPersistentJobQueueProvider
+namespace Hangfire.PostgreSql
 {
-  public PostgreSqlJobQueueProvider(PostgreSqlStorage storage, PostgreSqlStorageOptions options)
+  public class PostgreSqlJobQueueProvider : IPersistentJobQueueProvider
   {
-    Storage = storage ?? throw new ArgumentNullException(nameof(storage));
-    Options = options ?? throw new ArgumentNullException(nameof(options));
-  }
+    public PostgreSqlJobQueueProvider(PostgreSqlStorage storage, PostgreSqlStorageOptions options)
+    {
+      Storage = storage ?? throw new ArgumentNullException(nameof(storage));
+      Options = options ?? throw new ArgumentNullException(nameof(options));
+    }
 
-  public PostgreSqlStorageOptions Options { get; }
-  public PostgreSqlStorage Storage { get; }
+    public PostgreSqlStorageOptions Options { get; }
+    public PostgreSqlStorage Storage { get; }
 
-  public IPersistentJobQueue GetJobQueue()
-  {
-    return new PostgreSqlJobQueue(Storage);
-  }
+    public IPersistentJobQueue GetJobQueue()
+    {
+      return new PostgreSqlJobQueue(Storage);
+    }
 
-  public IPersistentJobQueueMonitoringApi GetJobQueueMonitoringApi()
-  {
-    return new PostgreSqlJobQueueMonitoringApi(Storage);
+    public IPersistentJobQueueMonitoringApi GetJobQueueMonitoringApi()
+    {
+      return new PostgreSqlJobQueueMonitoringApi(Storage);
+    }
   }
 }

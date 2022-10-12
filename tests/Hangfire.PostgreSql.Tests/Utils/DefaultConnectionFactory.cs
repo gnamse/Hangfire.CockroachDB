@@ -1,15 +1,15 @@
-﻿using Hangfire.CockroachDB;
-using Npgsql;
+﻿using Npgsql;
 
-namespace Hangfire.CocroachDB.Tests.Utils;
-
-public class DefaultConnectionFactory : IConnectionFactory
+namespace Hangfire.PostgreSql.Tests.Utils
 {
-  /// <summary>
-  /// Get or create NpgsqlConnection
-  /// </summary>
-  public NpgsqlConnection GetOrCreateConnection()
+  public class DefaultConnectionFactory : IConnectionFactory
   {
-    return ConnectionUtils.CreateConnection();
+    /// <summary>
+    /// Get or create NpgsqlConnection
+    /// </summary>
+    public NpgsqlConnection GetOrCreateConnection()
+    {
+      return ConnectionUtils.CreateConnection();
+    }
   }
 }

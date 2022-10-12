@@ -1,66 +1,67 @@
 ﻿using System.Data;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using Dapper;
-using Hangfire.CockroachDB;
 using Npgsql;
 using Xunit.Sdk;
 
-namespace Hangfire.CocroachDB.Tests.Utils;
-
-public class CleanDatabaseAttribute : BeforeAfterTestAttribute
+namespace Hangfire.PostgreSql.Tests.Utils
 {
-  private static readonly object _globalLock = new();
-  private static bool _sqlObjectInstalled;
-
-  public override void Before(MethodInfo methodUnderTest)
+  public class CleanDatabaseAttribute : BeforeAfterTestAttribute
   {
-    Monitor.Enter(_globalLock);
+    private static readonly object _globalLock = new();
+    private static bool _sqlObjectInstalled;
 
-    if (!_sqlObjectInstalled)
+    public override void Before(MethodInfo methodUnderTest)
     {
-      RecreateSchemaAndInstallObjects();
-      _sqlObjectInstalled = true;
+      Monitor.Enter(_globalLock);
+
+      if (!_sqlObjectInstalled)
+      {
+        RecreateSchemaAndInstallObjects();
+        _sqlObjectInstalled = true;
+      }
+
+      CleanTables();
     }
 
-    CleanTables();
-  }
-
-  public override void After(MethodInfo methodUnderTest)
-  {
-    try { }
-    finally
+    public override void After(MethodInfo methodUnderTest)
     {
-      Monitor.Exit(_globalLock);
-    }
-  }
-
-  private static void RecreateSchemaAndInstallObjects()
-  {
-    using NpgsqlConnection masterConnection = ConnectionUtils.CreateMasterConnection();
-    bool databaseExists = masterConnection.QuerySingleOrDefault<bool?>($@"SELECT true :: boolean FROM pg_database WHERE datname = @DatabaseName;",
-      new {
-        DatabaseName = ConnectionUtils.GetDatabaseName(),
-      }) ?? false;
-
-    if (!databaseExists)
-    {
-      masterConnection.Execute($@"CREATE DATABASE ""{ConnectionUtils.GetDatabaseName()}""");
+      try { }
+      finally
+      {
+        Monitor.Exit(_globalLock);
+      }
     }
 
-    using NpgsqlConnection connection = ConnectionUtils.CreateConnection();
-    if (connection.State == ConnectionState.Closed)
+    private static void RecreateSchemaAndInstallObjects()
     {
-      connection.Open();
+      using NpgsqlConnection masterConnection = ConnectionUtils.CreateMasterConnection();
+      bool databaseExists = masterConnection.QuerySingleOrDefault<bool?>($@"SELECT true :: boolean FROM pg_database WHERE datname = @DatabaseName;",
+        new {
+          DatabaseName = ConnectionUtils.GetDatabaseName(),
+        }) ?? false;
+
+      if (!databaseExists)
+      {
+        masterConnection.Execute($@"CREATE DATABASE ""{ConnectionUtils.GetDatabaseName()}""");
+      }
+
+      using NpgsqlConnection connection = ConnectionUtils.CreateConnection();
+      if (connection.State == ConnectionState.Closed)
+      {
+        connection.Open();
+      }
+
+      PostgreSqlObjectsInstaller.Install(connection);
+      PostgreSqlTestObjectsInitializer.CleanTables(connection);
     }
 
-    PostgreSqlObjectsInstaller.Install(connection);
-    PostgreSqlTestObjectsInitializer.CleanTables(connection);
-  }
-
-  private static void CleanTables()
-  {
-    using NpgsqlConnection connection = ConnectionUtils.CreateConnection();
-    PostgreSqlTestObjectsInitializer.CleanTables(connection);
+    private static void CleanTables()
+    {
+      using NpgsqlConnection connection = ConnectionUtils.CreateConnection();
+      PostgreSqlTestObjectsInitializer.CleanTables(connection);
+    }
   }
 }

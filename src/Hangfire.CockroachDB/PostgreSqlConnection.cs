@@ -1,18 +1,18 @@
-﻿// This file is part of Hangfire.PostgreSql.
-// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.PostgreSql>.
+﻿// This file is part of Hangfire.CockroachDb.
+// Copyright © 2014 Frank Hommers <http://hmm.rs/Hangfire.CockroachDb>.
 // 
-// Hangfire.PostgreSql is free software: you can redistribute it and/or modify
+// Hangfire.CockroachDb is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as 
 // published by the Free Software Foundation, either version 3 
 // of the License, or any later version.
 // 
-// Hangfire.PostgreSql  is distributed in the hope that it will be useful,
+// Hangfire.CockroachDb  is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
 // 
 // You should have received a copy of the GNU Lesser General Public 
-// License along with Hangfire.PostgreSql. If not, see <http://www.gnu.org/licenses/>.
+// License along with Hangfire.CockroachDb. If not, see <http://www.gnu.org/licenses/>.
 //
 // This work is based on the work of Sergey Odinokov, author of 
 // Hangfire. <http://hangfire.io/>
@@ -28,220 +28,220 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using Dapper;
-using Hangfire.CockroachDB.Entities;
 using Hangfire.Common;
+using Hangfire.PostgreSql.Entities;
 using Hangfire.Server;
 using Hangfire.Storage;
 using Npgsql;
 using IsolationLevel = System.Transactions.IsolationLevel;
 
-namespace Hangfire.CockroachDB;
-
-public class PostgreSqlConnection : JobStorageConnection
+namespace Hangfire.PostgreSql
 {
-  private readonly Dictionary<string, HashSet<Guid>> _lockedResources;
-  private readonly PostgreSqlStorageOptions _options;
-  private readonly PostgreSqlStorage _storage;
-
-  private DbConnection _dedicatedConnection;
-
-  public PostgreSqlConnection(PostgreSqlStorage storage)
+  public class PostgreSqlConnection : JobStorageConnection
   {
-    _storage = storage ?? throw new ArgumentNullException(nameof(storage));
-    _options = storage.Options ?? throw new ArgumentNullException(nameof(storage.Options));
-    _lockedResources = new Dictionary<string, HashSet<Guid>>();
-  }
+    private readonly Dictionary<string, HashSet<Guid>> _lockedResources;
+    private readonly PostgreSqlStorageOptions _options;
+    private readonly PostgreSqlStorage _storage;
 
-  public override void Dispose()
-  {
-    if (_dedicatedConnection == null)
+    private DbConnection _dedicatedConnection;
+
+    public PostgreSqlConnection(PostgreSqlStorage storage)
     {
-      return;
+      _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+      _options = storage.Options ?? throw new ArgumentNullException(nameof(storage.Options));
+      _lockedResources = new Dictionary<string, HashSet<Guid>>();
     }
 
-    _dedicatedConnection.Dispose();
-    _dedicatedConnection = null;
-  }
-
-  public override IWriteOnlyTransaction CreateWriteTransaction()
-  {
-    return new PostgreSqlWriteOnlyTransaction(_storage, () => _dedicatedConnection);
-  }
-
-  public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
-  {
-    return string.IsNullOrEmpty(resource)
-      ? throw new ArgumentNullException(nameof(resource))
-      : AcquireLock($"{_options.SchemaName}:{resource}", timeout);
-  }
-
-  public override IFetchedJob FetchNextJob(string[] queues, CancellationToken cancellationToken)
-  {
-    if (queues == null || queues.Length == 0)
+    public override void Dispose()
     {
-      throw new ArgumentNullException(nameof(queues));
+      if (_dedicatedConnection == null)
+      {
+        return;
+      }
+
+      _dedicatedConnection.Dispose();
+      _dedicatedConnection = null;
     }
 
-    IPersistentJobQueueProvider[] providers = queues
-      .Select(queue => _storage.QueueProviders.GetProvider(queue))
-      .Distinct()
-      .ToArray();
-
-    if (providers.Length != 1)
+    public override IWriteOnlyTransaction CreateWriteTransaction()
     {
-      throw new InvalidOperationException(
-        $"Multiple provider instances registered for queues: {string.Join(", ", queues)}. You should choose only one type of persistent queues per server instance.");
+      return new PostgreSqlWriteOnlyTransaction(_storage, () => _dedicatedConnection);
     }
 
-    IPersistentJobQueue persistentQueue = providers[0].GetJobQueue();
-    return persistentQueue.Dequeue(queues, cancellationToken);
-  }
-
-  public override string CreateExpiredJob(
-    Job job,
-    IDictionary<string, string> parameters,
-    DateTime createdAt,
-    TimeSpan expireIn)
-  {
-    if (job == null)
+    public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
     {
-      throw new ArgumentNullException(nameof(job));
+      return string.IsNullOrEmpty(resource)
+        ? throw new ArgumentNullException(nameof(resource))
+        : AcquireLock($"{_options.SchemaName}:{resource}", timeout);
     }
 
-    if (parameters == null)
+    public override IFetchedJob FetchNextJob(string[] queues, CancellationToken cancellationToken)
     {
-      throw new ArgumentNullException(nameof(parameters));
+      if (queues == null || queues.Length == 0)
+      {
+        throw new ArgumentNullException(nameof(queues));
+      }
+
+      IPersistentJobQueueProvider[] providers = queues
+        .Select(queue => _storage.QueueProviders.GetProvider(queue))
+        .Distinct()
+        .ToArray();
+
+      if (providers.Length != 1)
+      {
+        throw new InvalidOperationException(
+          $"Multiple provider instances registered for queues: {string.Join(", ", queues)}. You should choose only one type of persistent queues per server instance.");
+      }
+
+      IPersistentJobQueue persistentQueue = providers[0].GetJobQueue();
+      return persistentQueue.Dequeue(queues, cancellationToken);
     }
 
-    string createJobSql = $@"
+    public override string CreateExpiredJob(
+      Job job,
+      IDictionary<string, string> parameters,
+      DateTime createdAt,
+      TimeSpan expireIn)
+    {
+      if (job == null)
+      {
+        throw new ArgumentNullException(nameof(job));
+      }
+
+      if (parameters == null)
+      {
+        throw new ArgumentNullException(nameof(parameters));
+      }
+
+      string createJobSql = $@"
         INSERT INTO ""{_options.SchemaName}"".""job"" (""invocationdata"", ""arguments"", ""createdat"", ""expireat"")
         VALUES (@InvocationData, @Arguments, @CreatedAt, @ExpireAt) 
         RETURNING ""id"";
       ";
 
-    InvocationData invocationData = InvocationData.SerializeJob(job);
+      InvocationData invocationData = InvocationData.SerializeJob(job);
 
-    return _storage.UseTransaction(_dedicatedConnection, (connection, transaction) => {
-      string jobId = connection.QuerySingle<long>(createJobSql,
-        new {
-          InvocationData = SerializationHelper.Serialize(invocationData),
-          invocationData.Arguments,
-          CreatedAt = createdAt,
-          ExpireAt = createdAt.Add(expireIn),
-        }).ToString(CultureInfo.InvariantCulture);
+      return _storage.UseTransaction(_dedicatedConnection, (connection, transaction) => {
+        string jobId = connection.QuerySingle<long>(createJobSql,
+          new {
+            InvocationData = SerializationHelper.Serialize(invocationData),
+            invocationData.Arguments,
+            CreatedAt = createdAt,
+            ExpireAt = createdAt.Add(expireIn),
+          }).ToString(CultureInfo.InvariantCulture);
 
-      if (parameters.Count > 0)
-      {
-        object[] parameterArray = new object[parameters.Count];
-        int parameterIndex = 0;
-        foreach (KeyValuePair<string, string> parameter in parameters)
+        if (parameters.Count > 0)
         {
-          parameterArray[parameterIndex++] = new {
-            JobId = Convert.ToInt64(jobId, CultureInfo.InvariantCulture),
-            Name = parameter.Key,
-            parameter.Value,
-          };
-        }
+          object[] parameterArray = new object[parameters.Count];
+          int parameterIndex = 0;
+          foreach (KeyValuePair<string, string> parameter in parameters)
+          {
+            parameterArray[parameterIndex++] = new {
+              JobId = Convert.ToInt64(jobId, CultureInfo.InvariantCulture),
+              Name = parameter.Key,
+              parameter.Value,
+            };
+          }
 
-        string insertParameterSql = $@"
+          string insertParameterSql = $@"
             INSERT INTO ""{_options.SchemaName}"".""jobparameter"" (""jobid"", ""name"", ""value"")
             VALUES (@JobId, @Name, @Value);
           ";
 
-        connection.Execute(insertParameterSql, parameterArray, transaction);
-      }
+          connection.Execute(insertParameterSql, parameterArray, transaction);
+        }
 
-      return jobId;
-    });
-  }
-
-  public override JobData GetJobData(string id)
-  {
-    if (id == null)
-    {
-      throw new ArgumentNullException(nameof(id));
+        return jobId;
+      });
     }
 
-    string sql = $@"
+    public override JobData GetJobData(string id)
+    {
+      if (id == null)
+      {
+        throw new ArgumentNullException(nameof(id));
+      }
+
+      string sql = $@"
         SELECT ""invocationdata"" ""invocationData"", ""statename"" ""stateName"", ""arguments"", ""createdat"" ""createdAt"" 
         FROM ""{_options.SchemaName}"".""job"" 
         WHERE ""id"" = @Id;
       ";
 
-    SqlJob jobData = _storage.UseConnection(_dedicatedConnection,
-      connection => connection
-        .Query<SqlJob>(sql, new { Id = Convert.ToInt64(id, CultureInfo.InvariantCulture) })
-        .SingleOrDefault());
+      SqlJob jobData = _storage.UseConnection(_dedicatedConnection,
+        connection => connection
+          .Query<SqlJob>(sql, new { Id = Convert.ToInt64(id, CultureInfo.InvariantCulture) })
+          .SingleOrDefault());
 
-    if (jobData == null)
-    {
-      return null;
+      if (jobData == null)
+      {
+        return null;
+      }
+
+      // TODO: conversion exception could be thrown.
+      InvocationData invocationData = SerializationHelper.Deserialize<InvocationData>(jobData.InvocationData);
+      invocationData.Arguments = jobData.Arguments;
+
+      Job job = null;
+      JobLoadException loadException = null;
+
+      try
+      {
+        job = invocationData.DeserializeJob();
+      }
+      catch (JobLoadException ex)
+      {
+        loadException = ex;
+      }
+
+      return new JobData {
+        Job = job,
+        State = jobData.StateName,
+        CreatedAt = jobData.CreatedAt,
+        LoadException = loadException,
+      };
     }
 
-    // TODO: conversion exception could be thrown.
-    InvocationData invocationData = SerializationHelper.Deserialize<InvocationData>(jobData.InvocationData);
-    invocationData.Arguments = jobData.Arguments;
-
-    Job job = null;
-    JobLoadException loadException = null;
-
-    try
+    public override StateData GetStateData(string jobId)
     {
-      job = invocationData.DeserializeJob();
-    }
-    catch (JobLoadException ex)
-    {
-      loadException = ex;
-    }
+      if (jobId == null)
+      {
+        throw new ArgumentNullException(nameof(jobId));
+      }
 
-    return new JobData {
-      Job = job,
-      State = jobData.StateName,
-      CreatedAt = jobData.CreatedAt,
-      LoadException = loadException,
-    };
-  }
-
-  public override StateData GetStateData(string jobId)
-  {
-    if (jobId == null)
-    {
-      throw new ArgumentNullException(nameof(jobId));
-    }
-
-    string sql = $@"
+      string sql = $@"
         SELECT s.""name"" ""Name"", s.""reason"" ""Reason"", s.""data"" ""Data""
         FROM ""{_options.SchemaName}"".""state"" s
         INNER JOIN ""{_options.SchemaName}"".""job"" j on j.""stateid"" = s.""id""
         WHERE j.""id"" = @JobId;
       ";
 
-    SqlState sqlState = _storage.UseConnection(_dedicatedConnection,
-      connection => connection
-        .Query<SqlState>(sql, new { JobId = Convert.ToInt64(jobId, CultureInfo.InvariantCulture) })
-        .SingleOrDefault());
-    return sqlState == null
-      ? null
-      : new StateData {
-        Name = sqlState.Name,
-        Reason = sqlState.Reason,
-        Data = SerializationHelper.Deserialize<Dictionary<string, string>>(sqlState.Data),
-      };
-  }
-
-  public override void SetJobParameter(string id, string name, string value)
-  {
-    if (id == null)
-    {
-      throw new ArgumentNullException(nameof(id));
+      SqlState sqlState = _storage.UseConnection(_dedicatedConnection,
+        connection => connection
+          .Query<SqlState>(sql, new { JobId = Convert.ToInt64(jobId, CultureInfo.InvariantCulture) })
+          .SingleOrDefault());
+      return sqlState == null
+        ? null
+        : new StateData {
+          Name = sqlState.Name,
+          Reason = sqlState.Reason,
+          Data = SerializationHelper.Deserialize<Dictionary<string, string>>(sqlState.Data),
+        };
     }
 
-    if (name == null)
+    public override void SetJobParameter(string id, string name, string value)
     {
-      throw new ArgumentNullException(nameof(name));
-    }
+      if (id == null)
+      {
+        throw new ArgumentNullException(nameof(id));
+      }
 
-    string sql = $@"
+      if (name == null)
+      {
+        throw new ArgumentNullException(nameof(name));
+      }
+
+      string sql = $@"
         WITH ""inputvalues"" AS (
           SELECT @JobId ""jobid"", @Name ""name"", @Value ""value""
         ), ""updatedrows"" AS ( 
@@ -263,80 +263,80 @@ public class PostgreSqlConnection : JobStorageConnection
         );
       ";
 
-    _storage.UseConnection(_dedicatedConnection, connection => connection
-      .Execute(sql, new { JobId = Convert.ToInt64(id, CultureInfo.InvariantCulture), Name = name, Value = value }));
-  }
-
-  public override string GetJobParameter(string id, string name)
-  {
-    if (id == null)
-    {
-      throw new ArgumentNullException(nameof(id));
+      _storage.UseConnection(_dedicatedConnection, connection => connection
+        .Execute(sql, new { JobId = Convert.ToInt64(id, CultureInfo.InvariantCulture), Name = name, Value = value }));
     }
 
-    if (name == null)
+    public override string GetJobParameter(string id, string name)
     {
-      throw new ArgumentNullException(nameof(name));
+      if (id == null)
+      {
+        throw new ArgumentNullException(nameof(id));
+      }
+
+      if (name == null)
+      {
+        throw new ArgumentNullException(nameof(name));
+      }
+
+      string query = $@"SELECT ""value"" FROM ""{_options.SchemaName}"".""jobparameter"" WHERE ""jobid"" = @Id AND ""name"" = @Name;";
+
+      return _storage.UseConnection(_dedicatedConnection, connection => connection
+        .QuerySingleOrDefault<string>(query, new { Id = Convert.ToInt64(id, CultureInfo.InvariantCulture), Name = name }));
     }
 
-    string query = $@"SELECT ""value"" FROM ""{_options.SchemaName}"".""jobparameter"" WHERE ""jobid"" = @Id AND ""name"" = @Name;";
-
-    return _storage.UseConnection(_dedicatedConnection, connection => connection
-      .QuerySingleOrDefault<string>(query, new { Id = Convert.ToInt64(id, CultureInfo.InvariantCulture), Name = name }));
-  }
-
-  public override HashSet<string> GetAllItemsFromSet(string key)
-  {
-    if (key == null)
+    public override HashSet<string> GetAllItemsFromSet(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"SELECT ""value"" FROM ""{_options.SchemaName}"".""set"" WHERE ""key"" = @Key;";
+
+      return _storage.UseConnection(_dedicatedConnection, connection => {
+        IEnumerable<string> result = connection.Query<string>(query, new { Key = key });
+
+        return new HashSet<string>(result);
+      });
     }
 
-    string query = $@"SELECT ""value"" FROM ""{_options.SchemaName}"".""set"" WHERE ""key"" = @Key;";
-
-    return _storage.UseConnection(_dedicatedConnection, connection => {
-      IEnumerable<string> result = connection.Query<string>(query, new { Key = key });
-
-      return new HashSet<string>(result);
-    });
-  }
-
-  public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
-  {
-    if (key == null)
+    public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
     {
-      throw new ArgumentNullException(nameof(key));
-    }
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
 
-    if (toScore < fromScore)
-    {
-      throw new ArgumentException($"The '{nameof(toScore)}' value must be higher or equal to the '{nameof(fromScore)}' value.");
-    }
+      if (toScore < fromScore)
+      {
+        throw new ArgumentException($"The '{nameof(toScore)}' value must be higher or equal to the '{nameof(fromScore)}' value.");
+      }
 
-    return _storage.UseConnection(_dedicatedConnection, connection => connection
-      .QuerySingleOrDefault<string>($@"
+      return _storage.UseConnection(_dedicatedConnection, connection => connection
+        .QuerySingleOrDefault<string>($@"
           SELECT ""value"" 
           FROM ""{_options.SchemaName}"".""set"" 
           WHERE ""key"" = @Key 
           AND ""score"" BETWEEN @FromScore AND @ToScore 
           ORDER BY ""score"" LIMIT 1;
         ",
-        new { Key = key, FromScore = fromScore, ToScore = toScore }));
-  }
-
-  public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
-  {
-    if (key == null)
-    {
-      throw new ArgumentNullException(nameof(key));
+          new { Key = key, FromScore = fromScore, ToScore = toScore }));
     }
 
-    if (keyValuePairs == null)
+    public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
     {
-      throw new ArgumentNullException(nameof(keyValuePairs));
-    }
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
 
-    string sql = $@"
+      if (keyValuePairs == null)
+      {
+        throw new ArgumentNullException(nameof(keyValuePairs));
+      }
+
+      string sql = $@"
         WITH ""inputvalues"" AS (
           SELECT @Key ""key"", @Field ""field"", @Value ""value""
         ), ""updatedrows"" AS ( 
@@ -357,72 +357,72 @@ public class PostgreSqlConnection : JobStorageConnection
         );
       ";
 
-    Stopwatch executionTimer = Stopwatch.StartNew();
-    while (true)
-    {
-      try
+      Stopwatch executionTimer = Stopwatch.StartNew();
+      while (true)
       {
-        _storage.UseTransaction(_dedicatedConnection, (connection, transaction) => {
-          foreach (KeyValuePair<string, string> keyValuePair in keyValuePairs)
-          {
-            connection.Execute(sql, new { Key = key, Field = keyValuePair.Key, keyValuePair.Value }, transaction);
-          }
-        }, IsolationLevel.Serializable);
-
-        return;
-      }
-      catch (PostgresException exception)
-      {
-        if (!exception.SqlState.Equals(PostgresErrorCodes.SerializationFailure)) // 40001
+        try
         {
-          throw;
+          _storage.UseTransaction(_dedicatedConnection, (connection, transaction) => {
+            foreach (KeyValuePair<string, string> keyValuePair in keyValuePairs)
+            {
+              connection.Execute(sql, new { Key = key, Field = keyValuePair.Key, keyValuePair.Value }, transaction);
+            }
+          }, IsolationLevel.Serializable);
+
+          return;
+        }
+        catch (PostgresException exception)
+        {
+          if (!exception.SqlState.Equals(PostgresErrorCodes.SerializationFailure)) // 40001
+          {
+            throw;
+          }
+        }
+
+        if (executionTimer.Elapsed > _options.TransactionSynchronisationTimeout)
+        {
+          throw new TimeoutException("SetRangeInHash experienced timeout while trying to execute transaction");
         }
       }
-
-      if (executionTimer.Elapsed > _options.TransactionSynchronisationTimeout)
-      {
-        throw new TimeoutException("SetRangeInHash experienced timeout while trying to execute transaction");
-      }
     }
-  }
 
-  public override Dictionary<string, string> GetAllEntriesFromHash(string key)
-  {
-    if (key == null)
+    public override Dictionary<string, string> GetAllEntriesFromHash(string key)
     {
-      throw new ArgumentNullException(nameof(key));
-    }
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
 
-    Dictionary<string, string> result = _storage.UseConnection(_dedicatedConnection, connection => connection
-      .Query<SqlHash>($@"
+      Dictionary<string, string> result = _storage.UseConnection(_dedicatedConnection, connection => connection
+        .Query<SqlHash>($@"
           SELECT ""field"" ""Field"", ""value"" ""Value"" 
           FROM ""{_options.SchemaName}"".""hash"" 
           WHERE ""key"" = @Key;",
-        new { Key = key })
-      .ToDictionary(x => x.Field, x => x.Value));
+          new { Key = key })
+        .ToDictionary(x => x.Field, x => x.Value));
 
-    return result.Count != 0 ? result : null;
-  }
-
-  public override void AnnounceServer(string serverId, ServerContext context)
-  {
-    if (serverId == null)
-    {
-      throw new ArgumentNullException(nameof(serverId));
+      return result.Count != 0 ? result : null;
     }
 
-    if (context == null)
+    public override void AnnounceServer(string serverId, ServerContext context)
     {
-      throw new ArgumentNullException(nameof(context));
-    }
+      if (serverId == null)
+      {
+        throw new ArgumentNullException(nameof(serverId));
+      }
 
-    ServerData data = new() {
-      WorkerCount = context.WorkerCount,
-      Queues = context.Queues,
-      StartedAt = DateTime.UtcNow,
-    };
+      if (context == null)
+      {
+        throw new ArgumentNullException(nameof(context));
+      }
 
-    string sql = $@"
+      ServerData data = new() {
+        WorkerCount = context.WorkerCount,
+        Queues = context.Queues,
+        StartedAt = DateTime.UtcNow,
+      };
+
+      string sql = $@"
         WITH ""inputvalues"" AS (
           SELECT @Id ""id"", @Data ""data"", NOW() AT TIME ZONE 'UTC' ""lastheartbeat""
         ), ""updatedrows"" AS ( 
@@ -442,134 +442,134 @@ public class PostgreSqlConnection : JobStorageConnection
         );
       ";
 
-    _storage.UseConnection(_dedicatedConnection, connection => connection
-      .Execute(sql, new { Id = serverId, Data = SerializationHelper.Serialize(data) }));
-  }
-
-  public override void RemoveServer(string serverId)
-  {
-    if (serverId == null)
-    {
-      throw new ArgumentNullException(nameof(serverId));
+      _storage.UseConnection(_dedicatedConnection, connection => connection
+        .Execute(sql, new { Id = serverId, Data = SerializationHelper.Serialize(data) }));
     }
 
-    _storage.UseConnection(_dedicatedConnection, connection => connection
-      .Execute($@"DELETE FROM ""{_options.SchemaName}"".""server"" WHERE ""id"" = @Id;", new { Id = serverId }));
-  }
-
-  public override void Heartbeat(string serverId)
-  {
-    if (serverId == null)
+    public override void RemoveServer(string serverId)
     {
-      throw new ArgumentNullException(nameof(serverId));
+      if (serverId == null)
+      {
+        throw new ArgumentNullException(nameof(serverId));
+      }
+
+      _storage.UseConnection(_dedicatedConnection, connection => connection
+        .Execute($@"DELETE FROM ""{_options.SchemaName}"".""server"" WHERE ""id"" = @Id;", new { Id = serverId }));
     }
 
-    string query = $@"
+    public override void Heartbeat(string serverId)
+    {
+      if (serverId == null)
+      {
+        throw new ArgumentNullException(nameof(serverId));
+      }
+
+      string query = $@"
         UPDATE ""{_options.SchemaName}"".""server"" 
         SET ""lastheartbeat"" = NOW() AT TIME ZONE 'UTC' 
         WHERE ""id"" = @Id;
       ";
 
-    int affectedRows = _storage.UseConnection(_dedicatedConnection, connection => connection
-      .Execute(query, new { Id = serverId }));
+      int affectedRows = _storage.UseConnection(_dedicatedConnection, connection => connection
+        .Execute(query, new { Id = serverId }));
 
-    if (affectedRows == 0)
-    {
-      throw new BackgroundServerGoneException();
-    }
-  }
-
-  public override int RemoveTimedOutServers(TimeSpan timeOut)
-  {
-    if (timeOut.Duration() != timeOut)
-    {
-      throw new ArgumentException("The 'timeOut' value must be positive.", nameof(timeOut));
+      if (affectedRows == 0)
+      {
+        throw new BackgroundServerGoneException();
+      }
     }
 
-    string query = $@"
+    public override int RemoveTimedOutServers(TimeSpan timeOut)
+    {
+      if (timeOut.Duration() != timeOut)
+      {
+        throw new ArgumentException("The 'timeOut' value must be positive.", nameof(timeOut));
+      }
+
+      string query = $@"
         DELETE FROM ""{_options.SchemaName}"".""server"" 
         WHERE ""lastheartbeat"" < (NOW() AT TIME ZONE 'UTC' - INTERVAL '{((long)timeOut.TotalMilliseconds).ToString(CultureInfo.InvariantCulture)} MILLISECONDS');";
 
-    return _storage.UseConnection(_dedicatedConnection, connection => connection.Execute(query));
-  }
-
-  public override long GetSetCount(string key)
-  {
-    if (key == null)
-    {
-      throw new ArgumentNullException(nameof(key));
+      return _storage.UseConnection(_dedicatedConnection, connection => connection.Execute(query));
     }
 
-    string query = $@"SELECT COUNT(""key"") FROM ""{_options.SchemaName}"".""set"" WHERE ""key"" = @Key";
-
-    return _storage.UseConnection(_dedicatedConnection, connection => connection
-      .QuerySingleOrDefault<long>(query, new { Key = key }));
-  }
-
-  public override List<string> GetAllItemsFromList(string key)
-  {
-    if (key == null)
+    public override long GetSetCount(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"SELECT COUNT(""key"") FROM ""{_options.SchemaName}"".""set"" WHERE ""key"" = @Key";
+
+      return _storage.UseConnection(_dedicatedConnection, connection => connection
+        .QuerySingleOrDefault<long>(query, new { Key = key }));
     }
 
-    string query = $@"SELECT ""value"" FROM ""{_options.SchemaName}"".""list"" WHERE ""key"" = @Key ORDER BY ""id"" DESC";
-
-    return _storage.UseConnection(_dedicatedConnection, connection => connection
-      .Query<string>(query, new { Key = key })
-      .ToList());
-  }
-
-  public override long GetCounter(string key)
-  {
-    if (key == null)
+    public override List<string> GetAllItemsFromList(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"SELECT ""value"" FROM ""{_options.SchemaName}"".""list"" WHERE ""key"" = @Key ORDER BY ""id"" DESC";
+
+      return _storage.UseConnection(_dedicatedConnection, connection => connection
+        .Query<string>(query, new { Key = key })
+        .ToList());
     }
 
-    string query = $@"SELECT SUM(""value"") FROM ""{_options.SchemaName}"".""counter"" WHERE ""key"" = @Key";
-
-    return _storage.UseConnection(_dedicatedConnection, connection => connection
-        .QuerySingleOrDefault<long?>(query, new { Key = key }) ?? 0);
-  }
-
-  public override long GetListCount(string key)
-  {
-    if (key == null)
+    public override long GetCounter(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"SELECT SUM(""value"") FROM ""{_options.SchemaName}"".""counter"" WHERE ""key"" = @Key";
+
+      return _storage.UseConnection(_dedicatedConnection, connection => connection
+          .QuerySingleOrDefault<long?>(query, new { Key = key }) ?? 0);
     }
 
-    string query = $@"SELECT COUNT(""id"") FROM ""{_options.SchemaName}"".""list"" WHERE ""key"" = @Key";
-
-    return _storage.UseConnection(_dedicatedConnection, connection => connection
-      .QuerySingleOrDefault<long>(query, new { Key = key }));
-
-  }
-
-  public override TimeSpan GetListTtl(string key)
-  {
-    if (key == null)
+    public override long GetListCount(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"SELECT COUNT(""id"") FROM ""{_options.SchemaName}"".""list"" WHERE ""key"" = @Key";
+
+      return _storage.UseConnection(_dedicatedConnection, connection => connection
+        .QuerySingleOrDefault<long>(query, new { Key = key }));
+
     }
 
-    string query = $@"SELECT min(""expireat"") FROM ""{_options.SchemaName}"".""list"" WHERE ""key"" = @Key";
-
-    DateTime? result = _storage.UseConnection(_dedicatedConnection, connection => connection
-      .QuerySingleOrDefault<DateTime?>(query, new { Key = key }));
-
-    return !result.HasValue ? TimeSpan.FromSeconds(-1) : result.Value - DateTime.UtcNow;
-  }
-
-  public override List<string> GetRangeFromList(string key, int startingFrom, int endingAt)
-  {
-    if (key == null)
+    public override TimeSpan GetListTtl(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"SELECT min(""expireat"") FROM ""{_options.SchemaName}"".""list"" WHERE ""key"" = @Key";
+
+      DateTime? result = _storage.UseConnection(_dedicatedConnection, connection => connection
+        .QuerySingleOrDefault<DateTime?>(query, new { Key = key }));
+
+      return !result.HasValue ? TimeSpan.FromSeconds(-1) : result.Value - DateTime.UtcNow;
     }
 
-    string query = $@"
+    public override List<string> GetRangeFromList(string key, int startingFrom, int endingAt)
+    {
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"
           SELECT ""value"" 
           FROM ""{_options.SchemaName}"".""list""
           WHERE ""key"" = @Key
@@ -577,48 +577,48 @@ public class PostgreSqlConnection : JobStorageConnection
           LIMIT @Limit OFFSET @Offset
         ";
 
-    return _storage.UseConnection(_dedicatedConnection, connection =>
-      connection
-        .Query<string>(query, new { Key = key, Limit = endingAt - startingFrom + 1, Offset = startingFrom })
-        .ToList());
-  }
-
-  public override long GetHashCount(string key)
-  {
-    if (key == null)
-    {
-      throw new ArgumentNullException(nameof(key));
+      return _storage.UseConnection(_dedicatedConnection, connection =>
+        connection
+          .Query<string>(query, new { Key = key, Limit = endingAt - startingFrom + 1, Offset = startingFrom })
+          .ToList());
     }
 
-    string query = $@"SELECT COUNT(""id"") FROM ""{_options.SchemaName}"".""hash"" WHERE ""key"" = @Key";
-
-    return _storage.UseConnection(_dedicatedConnection, connection => connection
-      .QuerySingle<long>(query, new { Key = key }));
-  }
-
-  public override TimeSpan GetHashTtl(string key)
-  {
-    if (key == null)
+    public override long GetHashCount(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"SELECT COUNT(""id"") FROM ""{_options.SchemaName}"".""hash"" WHERE ""key"" = @Key";
+
+      return _storage.UseConnection(_dedicatedConnection, connection => connection
+        .QuerySingle<long>(query, new { Key = key }));
     }
 
-    string query = $@"SELECT MIN(""expireat"") FROM ""{_options.SchemaName}"".""hash"" WHERE ""key"" = @Key";
-
-    DateTime? result = _storage.UseConnection(_dedicatedConnection, connection => connection
-      .QuerySingleOrDefault<DateTime?>(query, new { Key = key }));
-
-    return !result.HasValue ? TimeSpan.FromSeconds(-1) : result.Value - DateTime.UtcNow;
-  }
-
-  public override List<string> GetRangeFromSet(string key, int startingFrom, int endingAt)
-  {
-    if (key == null)
+    public override TimeSpan GetHashTtl(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"SELECT MIN(""expireat"") FROM ""{_options.SchemaName}"".""hash"" WHERE ""key"" = @Key";
+
+      DateTime? result = _storage.UseConnection(_dedicatedConnection, connection => connection
+        .QuerySingleOrDefault<DateTime?>(query, new { Key = key }));
+
+      return !result.HasValue ? TimeSpan.FromSeconds(-1) : result.Value - DateTime.UtcNow;
     }
 
-    string query = $@"
+    public override List<string> GetRangeFromSet(string key, int startingFrom, int endingAt)
+    {
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"
           SELECT ""value"" 
           FROM ""{_options.SchemaName}"".""set""
           WHERE ""key"" = @Key
@@ -626,125 +626,126 @@ public class PostgreSqlConnection : JobStorageConnection
           LIMIT @Limit OFFSET @Offset
         ";
 
-    return _storage.UseConnection(_dedicatedConnection, connection => connection
-      .Query<string>(query, new { Key = key, Limit = endingAt - startingFrom + 1, Offset = startingFrom })
-      .ToList());
-  }
-
-  public override TimeSpan GetSetTtl(string key)
-  {
-    if (key == null)
-    {
-      throw new ArgumentNullException(nameof(key));
+      return _storage.UseConnection(_dedicatedConnection, connection => connection
+        .Query<string>(query, new { Key = key, Limit = endingAt - startingFrom + 1, Offset = startingFrom })
+        .ToList());
     }
 
-    string query = $@"SELECT min(""expireat"") FROM ""{_options.SchemaName}"".""set"" WHERE ""key"" = @Key";
-
-    DateTime? result = _storage.UseConnection(_dedicatedConnection, connection => connection
-      .QuerySingleOrDefault<DateTime?>(query, new { Key = key }));
-
-    return !result.HasValue ? TimeSpan.FromSeconds(-1) : result.Value - DateTime.UtcNow;
-  }
-
-  public override string GetValueFromHash(string key, string name)
-  {
-    if (key == null)
+    public override TimeSpan GetSetTtl(string key)
     {
-      throw new ArgumentNullException(nameof(key));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      string query = $@"SELECT min(""expireat"") FROM ""{_options.SchemaName}"".""set"" WHERE ""key"" = @Key";
+
+      DateTime? result = _storage.UseConnection(_dedicatedConnection, connection => connection
+        .QuerySingleOrDefault<DateTime?>(query, new { Key = key }));
+
+      return !result.HasValue ? TimeSpan.FromSeconds(-1) : result.Value - DateTime.UtcNow;
     }
 
-    if (name == null)
+    public override string GetValueFromHash(string key, string name)
     {
-      throw new ArgumentNullException(nameof(name));
+      if (key == null)
+      {
+        throw new ArgumentNullException(nameof(key));
+      }
+
+      if (name == null)
+      {
+        throw new ArgumentNullException(nameof(name));
+      }
+
+      string query = $@"SELECT ""value"" FROM ""{_options.SchemaName}"".""hash"" WHERE ""key"" = @Key AND ""field"" = @Field";
+
+      return _storage.UseConnection(_dedicatedConnection, connection => connection
+        .Query<string>(query, new { Key = key, Field = name })
+        .SingleOrDefault());
     }
 
-    string query = $@"SELECT ""value"" FROM ""{_options.SchemaName}"".""hash"" WHERE ""key"" = @Key AND ""field"" = @Field";
+    private IDisposable AcquireLock(string resource, TimeSpan timeout)
+    {
+      _dedicatedConnection ??= _storage.CreateAndOpenConnection();
 
-    return _storage.UseConnection(_dedicatedConnection, connection => connection
-      .Query<string>(query, new { Key = key, Field = name })
-      .SingleOrDefault());
-  }
+      Guid lockId = Guid.NewGuid();
 
-  private IDisposable AcquireLock(string resource, TimeSpan timeout)
-  {
-    _dedicatedConnection ??= _storage.CreateAndOpenConnection();
+      if (!_lockedResources.ContainsKey(resource))
+      {
+        try
+        {
+          PostgreSqlDistributedLock.Acquire(_dedicatedConnection, resource, timeout, _options);
+        }
+        catch (Exception)
+        {
+          ReleaseLock(resource, lockId, true);
+          throw;
+        }
 
-    Guid lockId = Guid.NewGuid();
+        _lockedResources.Add(resource, new HashSet<Guid>());
+      }
 
-    if (!_lockedResources.ContainsKey(resource))
+      _lockedResources[resource].Add(lockId);
+      return new DisposableLock(this, resource, lockId);
+    }
+
+    private void ReleaseLock(string resource, Guid lockId, bool onDisposing)
     {
       try
       {
-        PostgreSqlDistributedLock.Acquire(_dedicatedConnection, resource, timeout, _options);
+        if (!_lockedResources.TryGetValue(resource, out HashSet<Guid> resourceLocks))
+        {
+          return;
+        }
+
+        if (!resourceLocks.Contains(lockId))
+        {
+          return;
+        }
+
+        if (resourceLocks.Remove(lockId)
+          && resourceLocks.Count == 0
+          && _lockedResources.Remove(resource)
+          && _dedicatedConnection.State == ConnectionState.Open)
+        {
+          PostgreSqlDistributedLock.Release(_dedicatedConnection, resource, _options);
+        }
       }
       catch (Exception)
       {
-        ReleaseLock(resource, lockId, true);
-        throw;
+        if (!onDisposing)
+        {
+          throw;
+        }
       }
-
-      _lockedResources.Add(resource, new HashSet<Guid>());
+      finally
+      {
+        if (_lockedResources.Count == 0)
+        {
+          _storage.ReleaseConnection(_dedicatedConnection);
+          _dedicatedConnection = null;
+        }
+      }
     }
 
-    _lockedResources[resource].Add(lockId);
-    return new DisposableLock(this, resource, lockId);
-  }
-
-  private void ReleaseLock(string resource, Guid lockId, bool onDisposing)
-  {
-    try
+    private class DisposableLock : IDisposable
     {
-      if (!_lockedResources.TryGetValue(resource, out HashSet<Guid> resourceLocks))
+      private readonly PostgreSqlConnection _connection;
+      private readonly Guid _lockId;
+      private readonly string _resource;
+
+      public DisposableLock(PostgreSqlConnection connection, string resource, Guid lockId)
       {
-        return;
+        _connection = connection;
+        _resource = resource;
+        _lockId = lockId;
       }
 
-      if (!resourceLocks.Contains(lockId))
+      public void Dispose()
       {
-        return;
+        _connection.ReleaseLock(_resource, _lockId, true);
       }
-
-      if (resourceLocks.Remove(lockId)
-        && resourceLocks.Count == 0
-        && _lockedResources.Remove(resource)
-        && _dedicatedConnection.State == ConnectionState.Open)
-      {
-        PostgreSqlDistributedLock.Release(_dedicatedConnection, resource, _options);
-      }
-    }
-    catch (Exception)
-    {
-      if (!onDisposing)
-      {
-        throw;
-      }
-    }
-    finally
-    {
-      if (_lockedResources.Count == 0)
-      {
-        _storage.ReleaseConnection(_dedicatedConnection);
-        _dedicatedConnection = null;
-      }
-    }
-  }
-
-  private class DisposableLock : IDisposable
-  {
-    private readonly PostgreSqlConnection _connection;
-    private readonly Guid _lockId;
-    private readonly string _resource;
-
-    public DisposableLock(PostgreSqlConnection connection, string resource, Guid lockId)
-    {
-      _connection = connection;
-      _resource = resource;
-      _lockId = lockId;
-    }
-
-    public void Dispose()
-    {
-      _connection.ReleaseLock(_resource, _lockId, true);
     }
   }
 }

@@ -7,7 +7,6 @@
     <VersionPrefix>1.9.4</VersionPrefix>
     <Authors>Frank Hommers and others (Burhan Irmikci (barhun), Zachary Sims(zsims), kgamecarter, Stafford Williams (staff0rd), briangweber, Viktor Svyatokha (ahydrax), Christopher Dresel (Dresel), Vytautas Kasparavičius (vytautask), Vincent Vrijburg, David Roth (davidroth).</Authors>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <AssemblyName>Hangfire.CocroachDB</AssemblyName>
     <OutputType>Library</OutputType>
     <PackageTags>Hangfire;PostgreSql;Postgres</PackageTags>
     <PackageReleaseNotes>https://github.com/frankhommers/Hangfire.PostgreSql/releases</PackageReleaseNotes>
@@ -22,6 +21,7 @@
     <RepositoryType>git</RepositoryType>
     <Company>Frank Hommers and others (Burhan Irmikci (barhun), Zachary Sims(zsims), kgamecarter, Stafford Williams (staff0rd), briangweber, Viktor Svyatokha (ahydrax), Christopher Dresel (Dresel), Vytautas Kasparavičius (vytautask), Vincent Vrijburg, David Roth (davidroth).</Company>
     <LangVersion>default</LangVersion>
+    <RootNamespace>Hangfire.PostgreSql</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,10 +30,6 @@
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.0.123" />
-    <PackageReference Include="GitVersion.MsBuild" Version="5.8.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Hangfire.Core" Version="1.7.27" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
   </ItemGroup>
@@ -60,7 +56,7 @@
     </When>
     <Otherwise>
       <PropertyGroup>
-        <PackageId>Hangfire.PostgreSql</PackageId>
+        <PackageId>Hangfire.CockroachDb</PackageId>
       </PropertyGroup>
       <ItemGroup>
         <PackageReference Include="Npgsql" Version="6.0.0" />

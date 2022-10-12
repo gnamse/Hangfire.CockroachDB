@@ -15,7 +15,7 @@ Reference it in your project, and you are ready to go by using:
 
 ```csharp
 app.UseHangfireServer(new BackgroundJobServerOptions(), 
-  new PostgreSqlStorage("<connection string or its name>"));
+  new CockroachDbStorage("<connection string or its name>"));
 app.UseHangfireDashboard();
 ```
 

@@ -1,14 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>PostgreSql storage implementation for Hangfire (background job system for ASP.NET and aspnet core applications).</Description>
+    <Description>CockroachDb storage implementation for Hangfire (background job system for ASP.NET and aspnet core applications).</Description>
     <Copyright>Copyright © 2014-2021 Frank Hommers and others</Copyright>
-    <AssemblyTitle>Hangfire PostgreSql Storage</AssemblyTitle>
+    <AssemblyTitle>Hangfire CockroachDb Storage</AssemblyTitle>
     <VersionPrefix>1.9.4</VersionPrefix>
     <Authors>Frank Hommers and others (Burhan Irmikci (barhun), Zachary Sims(zsims), kgamecarter, Stafford Williams (staff0rd), briangweber, Viktor Svyatokha (ahydrax), Christopher Dresel (Dresel), Vytautas Kasparavičius (vytautask), Vincent Vrijburg, David Roth (davidroth).</Authors>
     <TargetFramework>netstandard2.0</TargetFramework>
     <OutputType>Library</OutputType>
-    <PackageTags>Hangfire;PostgreSql;Postgres</PackageTags>
+    <PackageTags>Hangfire;CockroachDb</PackageTags>
     <PackageReleaseNotes>https://github.com/frankhommers/Hangfire.PostgreSql/releases</PackageReleaseNotes>
     <PackageProjectUrl>http://hmm.rs/Hangfire.PostgreSql</PackageProjectUrl>
     <PackageLicenseUrl></PackageLicenseUrl>

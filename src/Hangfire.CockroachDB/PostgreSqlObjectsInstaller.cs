@@ -32,7 +32,7 @@ namespace Hangfire.PostgreSql
 {
   public static class PostgreSqlObjectsInstaller
   {
-    private static readonly ILog _logger = LogProvider.GetLogger(typeof(PostgreSqlStorage));
+    private static readonly ILog _logger = LogProvider.GetLogger(typeof(CockroachDbStorage));
 
     public static void Install(NpgsqlConnection connection, string schemaName = "hangfire")
     {

@@ -25,14 +25,14 @@ namespace Hangfire.PostgreSql
 {
   public class PostgreSqlJobQueueProvider : IPersistentJobQueueProvider
   {
-    public PostgreSqlJobQueueProvider(PostgreSqlStorage storage, PostgreSqlStorageOptions options)
+    public PostgreSqlJobQueueProvider(CockroachDbStorage storage, PostgreSqlStorageOptions options)
     {
       Storage = storage ?? throw new ArgumentNullException(nameof(storage));
       Options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     public PostgreSqlStorageOptions Options { get; }
-    public PostgreSqlStorage Storage { get; }
+    public CockroachDbStorage Storage { get; }
 
     public IPersistentJobQueue GetJobQueue()
     {

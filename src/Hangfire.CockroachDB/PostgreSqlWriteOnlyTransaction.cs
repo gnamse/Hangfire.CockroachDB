@@ -39,10 +39,10 @@ namespace Hangfire.PostgreSql
     private readonly Queue<Action<IDbConnection>> _commandQueue = new();
     private readonly Func<DbConnection> _dedicatedConnectionFunc;
 
-    private readonly PostgreSqlStorage _storage;
+    private readonly CockroachDbStorage _storage;
 
     public PostgreSqlWriteOnlyTransaction(
-      PostgreSqlStorage storage,
+      CockroachDbStorage storage,
       Func<DbConnection> dedicatedConnectionFunc)
     {
       _storage = storage ?? throw new ArgumentNullException(nameof(storage));

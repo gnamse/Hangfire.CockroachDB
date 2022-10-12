@@ -27,13 +27,13 @@ namespace Hangfire.PostgreSql
 {
   public class PostgreSqlFetchedJob : IFetchedJob
   {
-    private readonly PostgreSqlStorage _storage;
+    private readonly CockroachDbStorage _storage;
     private bool _disposed;
     private bool _removedFromQueue;
     private bool _requeued;
 
     public PostgreSqlFetchedJob(
-      PostgreSqlStorage storage,
+      CockroachDbStorage storage,
       long id,
       string jobId,
       string queue)

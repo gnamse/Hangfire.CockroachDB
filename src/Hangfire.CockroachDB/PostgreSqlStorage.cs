@@ -34,20 +34,20 @@ using IsolationLevel = System.Transactions.IsolationLevel;
 
 namespace Hangfire.PostgreSql
 {
-  public class PostgreSqlStorage : JobStorage
+  public class CockroachDbStorage : JobStorage
   {
     private readonly IConnectionFactory _connectionFactory;
     private readonly Action<NpgsqlConnection> _connectionSetup;
     private readonly NpgsqlConnectionStringBuilder _connectionStringBuilder;
     private readonly NpgsqlConnection _existingConnection;
 
-    public PostgreSqlStorage(string connectionString)
+    public CockroachDbStorage(string connectionString)
       : this(connectionString, new PostgreSqlStorageOptions()) { }
 
-    public PostgreSqlStorage(string connectionString, PostgreSqlStorageOptions options)
+    public CockroachDbStorage(string connectionString, PostgreSqlStorageOptions options)
       : this(connectionString, null, options) { }
 
-    public PostgreSqlStorage(IConnectionFactory connectionFactory, PostgreSqlStorageOptions options)
+    public CockroachDbStorage(IConnectionFactory connectionFactory, PostgreSqlStorageOptions options)
     {
       _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
       Options = options ?? throw new ArgumentNullException(nameof(options));
@@ -70,7 +70,7 @@ namespace Hangfire.PostgreSql
     /// <exception cref="ArgumentNullException"><paramref name="connectionString" /> argument is null.</exception>
     /// <exception cref="ArgumentNullException"><paramref name="options" /> argument is null.</exception>
     /// <exception cref="ArgumentException"><paramref name="connectionString" /> argument not a valid PostgreSQL connection string config file.</exception>
-    public PostgreSqlStorage(
+    public CockroachDbStorage(
       string connectionString,
       Action<NpgsqlConnection> connectionSetup,
       PostgreSqlStorageOptions options)
@@ -100,13 +100,13 @@ namespace Hangfire.PostgreSql
     }
 
     /// <summary>
-    ///   Initializes a new instance of the <see cref="PostgreSqlStorage" /> class with
+    ///   Initializes a new instance of the <see cref="CockroachDbStorage" /> class with
     ///   explicit instance of the <see cref="NpgsqlConnection" /> class that will be used
     ///   to query the data.
     /// </summary>
     /// <param name="existingConnection">Existing connection</param>
     /// <param name="options">PostgreSqlStorageOptions</param>
-    public PostgreSqlStorage(NpgsqlConnection existingConnection, PostgreSqlStorageOptions options)
+    public CockroachDbStorage(NpgsqlConnection existingConnection, PostgreSqlStorageOptions options)
     {
       if (existingConnection == null)
       {
@@ -134,7 +134,7 @@ namespace Hangfire.PostgreSql
       InitializeQueueProviders();
     }
 
-    public PostgreSqlStorage(NpgsqlConnection existingConnection)
+    public CockroachDbStorage(NpgsqlConnection existingConnection)
     {
       if (existingConnection == null)
       {

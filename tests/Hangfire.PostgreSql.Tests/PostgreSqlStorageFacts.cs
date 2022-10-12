@@ -34,7 +34,7 @@ namespace Hangfire.PostgreSql.Tests
       // We won't be performing any queries so there is no side-effect for having this disabled
       _options.EnableTransactionScopeEnlistment = false;
 
-      PostgreSqlStorage storage = CreateStorage();
+      CockroachDbStorage storage = CreateStorage();
       
       // Act
       using (var connection = storage.CreateAndOpenConnection())
@@ -47,7 +47,7 @@ namespace Hangfire.PostgreSql.Tests
     [Fact]
     public void Ctor_ThrowsAnException_WhenConnectionStringIsNull()
     {
-      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new PostgreSqlStorage(connectionString: null));
+      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new CockroachDbStorage(connectionString: null));
 
       Assert.Equal("connectionString", exception.ParamName);
     }
@@ -55,7 +55,7 @@ namespace Hangfire.PostgreSql.Tests
     [Fact]
     public void Ctor_ThrowsAnException_WhenConnectionStringIsInvalid()
     {
-      ArgumentException exception = Assert.Throws<ArgumentException>(() => new PostgreSqlStorage("hello", new PostgreSqlStorageOptions()));
+      ArgumentException exception = Assert.Throws<ArgumentException>(() => new CockroachDbStorage("hello", new PostgreSqlStorageOptions()));
 
       Assert.Equal("connectionString", exception.ParamName);
     }
@@ -63,7 +63,7 @@ namespace Hangfire.PostgreSql.Tests
     [Fact]
     public void Ctor_ThrowsAnException_WhenOptionsValueIsNull()
     {
-      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new PostgreSqlStorage("hello", null));
+      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new CockroachDbStorage("hello", null));
 
       Assert.Equal("options", exception.ParamName);
     }
@@ -73,7 +73,7 @@ namespace Hangfire.PostgreSql.Tests
     public void Ctor_CanCreateSqlServerStorage_WithExistingConnection()
     {
       NpgsqlConnection connection = ConnectionUtils.CreateConnection();
-      PostgreSqlStorage storage = new(connection, _options);
+      CockroachDbStorage storage = new(connection, _options);
 
       Assert.NotNull(storage);
     }
@@ -82,7 +82,7 @@ namespace Hangfire.PostgreSql.Tests
     [CleanDatabase]
     public void Ctor_InitializesDefaultJobQueueProvider_AndPassesCorrectOptions()
     {
-      PostgreSqlStorage storage = CreateStorage();
+      CockroachDbStorage storage = CreateStorage();
       PersistentJobQueueProviderCollection providers = storage.QueueProviders;
 
       PostgreSqlJobQueueProvider provider = (PostgreSqlJobQueueProvider)providers.GetProvider("default");
@@ -94,7 +94,7 @@ namespace Hangfire.PostgreSql.Tests
     [CleanDatabase]
     public void GetMonitoringApi_ReturnsNonNullInstance()
     {
-      PostgreSqlStorage storage = CreateStorage();
+      CockroachDbStorage storage = CreateStorage();
       IMonitoringApi api = storage.GetMonitoringApi();
       Assert.NotNull(api);
     }
@@ -103,7 +103,7 @@ namespace Hangfire.PostgreSql.Tests
     [CleanDatabase]
     public void GetComponents_ReturnsAllNeededComponents()
     {
-      PostgreSqlStorage storage = CreateStorage();
+      CockroachDbStorage storage = CreateStorage();
 
       IEnumerable<IServerComponent> components = storage.GetComponents();
 
@@ -114,7 +114,7 @@ namespace Hangfire.PostgreSql.Tests
     [Fact]
     public void Ctor_ThrowsAnException_WhenConnectionFactoryIsNull()
     {
-      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new PostgreSqlStorage(connectionFactory: null, new PostgreSqlStorageOptions()));
+      ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() => new CockroachDbStorage(connectionFactory: null, new PostgreSqlStorageOptions()));
       Assert.Equal("connectionFactory", exception.ParamName);
     }
 
@@ -122,7 +122,7 @@ namespace Hangfire.PostgreSql.Tests
     [CleanDatabase]
     public void Ctor_CanCreateSqlServerStorage_WithExistingConnectionFactory()
     {
-      PostgreSqlStorage storage = new(new DefaultConnectionFactory(), _options);
+      CockroachDbStorage storage = new(new DefaultConnectionFactory(), _options);
       Assert.NotNull(storage);
     }
 
@@ -130,7 +130,7 @@ namespace Hangfire.PostgreSql.Tests
     [CleanDatabase]
     public void CanCreateAndOpenConnection_WithExistingConnectionFactory()
     {
-      PostgreSqlStorage storage = new(new DefaultConnectionFactory(), _options);
+      CockroachDbStorage storage = new(new DefaultConnectionFactory(), _options);
       NpgsqlConnection connection = storage.CreateAndOpenConnection();
       Assert.NotNull(connection);
     }
@@ -142,7 +142,7 @@ namespace Hangfire.PostgreSql.Tests
         EnableTransactionScopeEnlistment = false,
         PrepareSchemaIfNecessary = false,
       };
-      PostgreSqlStorage storage = new(new DefaultConnectionFactory(), option);
+      CockroachDbStorage storage = new(new DefaultConnectionFactory(), option);
       Assert.Throws<ArgumentException>(() => storage.CreateAndOpenConnection());
     }
 
@@ -152,7 +152,7 @@ namespace Hangfire.PostgreSql.Tests
       using TransactionScope scope = new(TransactionScopeOption.Required,
         new TransactionOptions() { IsolationLevel = IsolationLevel.Serializable });
       
-      PostgreSqlStorage storage = new(new DefaultConnectionFactory(), _options);
+      CockroachDbStorage storage = new(new DefaultConnectionFactory(), _options);
       NpgsqlConnection connection = storage.CreateAndOpenConnection();
       
       bool success = storage.UseTransaction(connection, (_, _) => true);
@@ -160,9 +160,9 @@ namespace Hangfire.PostgreSql.Tests
       Assert.True(success);
     }
 
-    private PostgreSqlStorage CreateStorage()
+    private CockroachDbStorage CreateStorage()
     {
-      return new PostgreSqlStorage(ConnectionUtils.GetConnectionString(), _options);
+      return new CockroachDbStorage(ConnectionUtils.GetConnectionString(), _options);
     }
   }
 }

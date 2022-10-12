@@ -41,11 +41,11 @@ namespace Hangfire.PostgreSql
   {
     private readonly Dictionary<string, HashSet<Guid>> _lockedResources;
     private readonly PostgreSqlStorageOptions _options;
-    private readonly PostgreSqlStorage _storage;
+    private readonly CockroachDbStorage _storage;
 
     private DbConnection _dedicatedConnection;
 
-    public PostgreSqlConnection(PostgreSqlStorage storage)
+    public PostgreSqlConnection(CockroachDbStorage storage)
     {
       _storage = storage ?? throw new ArgumentNullException(nameof(storage));
       _options = storage.Options ?? throw new ArgumentNullException(nameof(storage.Options));

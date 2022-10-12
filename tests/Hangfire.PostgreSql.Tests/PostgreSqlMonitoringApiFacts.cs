@@ -60,7 +60,7 @@ namespace Hangfire.PostgreSql.Tests
 
     private void UseConnection(Action<NpgsqlConnection> action)
     {
-      PostgreSqlStorage storage = _fixture.SafeInit();
+      CockroachDbStorage storage = _fixture.SafeInit();
       action(storage.CreateAndOpenConnection());
     }
 
@@ -68,7 +68,7 @@ namespace Hangfire.PostgreSql.Tests
       NpgsqlConnection connection,
       Action<PostgreSqlWriteOnlyTransaction> action)
     {
-      PostgreSqlStorage storage = _fixture.SafeInit();
+      CockroachDbStorage storage = _fixture.SafeInit();
       using PostgreSqlWriteOnlyTransaction transaction = new(storage, () => connection);
       action(transaction);
       transaction.Commit();

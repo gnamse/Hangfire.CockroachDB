@@ -39,7 +39,7 @@ namespace Hangfire.PostgreSql.Tests
     public void Ctor_ThrowsAnException_WhenOptionsIsNull()
     {
       ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
-        () => new PostgreSqlConnection(new PostgreSqlStorage("some-connection-string", null, null)));
+        () => new PostgreSqlConnection(new CockroachDbStorage("some-connection-string", null, null)));
 
       Assert.Equal("options", exception.ParamName);
     }
@@ -1279,13 +1279,13 @@ namespace Hangfire.PostgreSql.Tests
 
     private void UseConnections(Action<NpgsqlConnection, PostgreSqlConnection> action)
     {
-      PostgreSqlStorage storage = _fixture.SafeInit();
+      CockroachDbStorage storage = _fixture.SafeInit();
       action(storage.CreateAndOpenConnection(), storage.GetStorageConnection());
     }
 
     private void UseConnection(Action<PostgreSqlConnection> action)
     {
-      PostgreSqlStorage storage = _fixture.SafeInit();
+      CockroachDbStorage storage = _fixture.SafeInit();
       action(storage.GetStorageConnection());
     }
 
@@ -1293,7 +1293,7 @@ namespace Hangfire.PostgreSql.Tests
     {
       using (NpgsqlConnection sqlConnection = ConnectionUtils.CreateConnection())
       {
-        PostgreSqlStorage storage = new PostgreSqlStorage(sqlConnection, new PostgreSqlStorageOptions {
+        CockroachDbStorage storage = new CockroachDbStorage(sqlConnection, new PostgreSqlStorageOptions {
           EnableTransactionScopeEnlistment = true,
           SchemaName = GetSchemaName(),
           TransactionSynchronisationTimeout = TimeSpan.FromSeconds(1),

@@ -39,7 +39,7 @@ namespace Hangfire.PostgreSql.Tests
     {
       PostgreSqlStorageOptions options = new PostgreSqlStorageOptions { EnableTransactionScopeEnlistment = true };
       ArgumentNullException exception = Assert.Throws<ArgumentNullException>(() =>
-        new PostgreSqlWriteOnlyTransaction(new PostgreSqlStorage(ConnectionUtils.CreateConnection(), options), null));
+        new PostgreSqlWriteOnlyTransaction(new CockroachDbStorage(ConnectionUtils.CreateConnection(), options), null));
 
       Assert.Equal("dedicatedConnectionFunc", exception.ParamName);
     }
@@ -1085,7 +1085,7 @@ namespace Hangfire.PostgreSql.Tests
           var _ = connection.Query($@"SELECT * FROM ""{GetSchemaName()}"".""jobqueue""").FirstOrDefault();
         }
 
-        var storage = new PostgreSqlStorage(connectionString, new PostgreSqlStorageOptions { EnableTransactionScopeEnlistment = true });
+        var storage = new CockroachDbStorage(connectionString, new PostgreSqlStorageOptions { EnableTransactionScopeEnlistment = true });
         using (IStorageConnection storageConnection = storage.GetConnection())
         {
           using (IWriteOnlyTransaction writeTransaction = storageConnection.CreateWriteTransaction())
@@ -1115,7 +1115,7 @@ namespace Hangfire.PostgreSql.Tests
 
     private void UseConnection(Action<NpgsqlConnection> action)
     {
-      PostgreSqlStorage storage = _fixture.SafeInit();
+      CockroachDbStorage storage = _fixture.SafeInit();
       action(storage.CreateAndOpenConnection());
     }
 
@@ -1129,7 +1129,7 @@ namespace Hangfire.PostgreSql.Tests
 
     private void Commit(NpgsqlConnection connection, Action<PostgreSqlWriteOnlyTransaction> action)
     {
-      PostgreSqlStorage storage = _fixture.ForceInit(connection);
+      CockroachDbStorage storage = _fixture.ForceInit(connection);
       using (IWriteOnlyTransaction transaction = storage.GetConnection().CreateWriteTransaction())
       {
         action(transaction as PostgreSqlWriteOnlyTransaction);
@@ -1139,7 +1139,7 @@ namespace Hangfire.PostgreSql.Tests
 
     private void CommitDisposable(NpgsqlConnection connection, Action<PostgreSqlWriteOnlyTransaction> action)
     {
-      PostgreSqlStorage storage = new PostgreSqlStorage(connection, new PostgreSqlStorageOptions {
+      CockroachDbStorage storage = new CockroachDbStorage(connection, new PostgreSqlStorageOptions {
         EnableTransactionScopeEnlistment = true,
         SchemaName = GetSchemaName(),
       });

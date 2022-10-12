@@ -489,16 +489,16 @@ namespace Hangfire.PostgreSql.Tests
 #pragma warning restore xUnit1013 // Public method should be marked as test
     { }
 
-    private static PostgreSqlJobQueue CreateJobQueue(PostgreSqlStorage storage, bool useNativeDatabaseTransactions)
+    private static PostgreSqlJobQueue CreateJobQueue(CockroachDbStorage storage, bool useNativeDatabaseTransactions)
     {
       storage.Options.SchemaName = GetSchemaName();
       storage.Options.UseNativeDatabaseTransactions = useNativeDatabaseTransactions;
       return new PostgreSqlJobQueue(storage);
     }
 
-    private void UseConnection(Action<IDbConnection, PostgreSqlStorage> action)
+    private void UseConnection(Action<IDbConnection, CockroachDbStorage> action)
     {
-      PostgreSqlStorage storage = _fixture.SafeInit();
+      CockroachDbStorage storage = _fixture.SafeInit();
       storage.UseConnection(null, connection => {
         action(connection, storage);
 

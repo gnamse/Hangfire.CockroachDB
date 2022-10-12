@@ -54,12 +54,12 @@ namespace Hangfire.PostgreSql
 
     private readonly TimeSpan _checkInterval;
 
-    private readonly PostgreSqlStorage _storage;
+    private readonly CockroachDbStorage _storage;
 
-    public ExpirationManager(PostgreSqlStorage storage)
+    public ExpirationManager(CockroachDbStorage storage)
       : this(storage ?? throw new ArgumentNullException(nameof(storage)), storage.Options.JobExpirationCheckInterval) { }
 
-    public ExpirationManager(PostgreSqlStorage storage, TimeSpan checkInterval)
+    public ExpirationManager(CockroachDbStorage storage, TimeSpan checkInterval)
     {
       _storage = storage ?? throw new ArgumentNullException(nameof(storage));
       _checkInterval = checkInterval;
@@ -150,7 +150,7 @@ namespace Hangfire.PostgreSql
       });
     }
 
-    private void UseConnectionDistributedLock(PostgreSqlStorage storage, Action<IDbConnection> action)
+    private void UseConnectionDistributedLock(CockroachDbStorage storage, Action<IDbConnection> action)
     {
       try
       {

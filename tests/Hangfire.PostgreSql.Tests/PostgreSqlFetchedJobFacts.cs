@@ -12,11 +12,11 @@ namespace Hangfire.PostgreSql.Tests
     private const string JobId = "id";
     private const string Queue = "queue";
 
-    private readonly PostgreSqlStorage _storage;
+    private readonly CockroachDbStorage _storage;
 
     public PostgreSqlFetchedJobFacts()
     {
-      _storage = new PostgreSqlStorage(ConnectionUtils.GetConnectionString());
+      _storage = new CockroachDbStorage(ConnectionUtils.GetConnectionString());
     }
 
     [Fact]
@@ -124,7 +124,7 @@ namespace Hangfire.PostgreSql.Tests
       Assert.Null(record.fetchedat);
     }
 
-    private static long CreateJobQueueRecord(PostgreSqlStorage storage, string jobId, string queue)
+    private static long CreateJobQueueRecord(CockroachDbStorage storage, string jobId, string queue)
     {
       string arrangeSql = $@"
         INSERT INTO ""{GetSchemaName()}"".""jobqueue"" (""jobid"", ""queue"", ""fetchedat"")

@@ -34,9 +34,9 @@ namespace Hangfire.PostgreSql
   public class PostgreSqlJobQueue : IPersistentJobQueue
   {
     internal static readonly AutoResetEvent _newItemInQueueEvent = new(true);
-    private readonly PostgreSqlStorage _storage;
+    private readonly CockroachDbStorage _storage;
 
-    public PostgreSqlJobQueue(PostgreSqlStorage storage)
+    public PostgreSqlJobQueue(CockroachDbStorage storage)
     {
       _storage = storage ?? throw new ArgumentNullException(nameof(storage));
       SignalDequeue = new AutoResetEvent(false);

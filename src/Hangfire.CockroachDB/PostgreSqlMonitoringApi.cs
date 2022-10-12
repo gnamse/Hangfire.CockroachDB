@@ -36,10 +36,10 @@ namespace Hangfire.PostgreSql
   public class PostgreSqlMonitoringApi : IMonitoringApi
   {
     private readonly PersistentJobQueueProviderCollection _queueProviders;
-    private readonly PostgreSqlStorage _storage;
+    private readonly CockroachDbStorage _storage;
 
     public PostgreSqlMonitoringApi(
-      PostgreSqlStorage storage,
+      CockroachDbStorage storage,
       PersistentJobQueueProviderCollection queueProviders)
     {
       _storage = storage ?? throw new ArgumentNullException(nameof(storage));

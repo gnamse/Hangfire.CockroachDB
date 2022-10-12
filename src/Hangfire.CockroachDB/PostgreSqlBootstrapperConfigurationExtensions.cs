@@ -33,7 +33,7 @@ namespace Hangfire.PostgreSql
     /// </summary>
     /// <param name="configuration">Configuration</param>
     /// <param name="connectionString">Connection string</param>
-    public static IGlobalConfiguration<PostgreSqlStorage> UseCockroachDbStorage(
+    public static IGlobalConfiguration<CockroachDbStorage> UseCockroachDbStorage(
       this IGlobalConfiguration configuration,
       string connectionString)
     {
@@ -48,7 +48,7 @@ namespace Hangfire.PostgreSql
     /// <param name="configuration">Configuration</param>
     /// <param name="connectionString">Connection string</param>
     /// <param name="options">Advanced options</param>
-    public static IGlobalConfiguration<PostgreSqlStorage> UseCockroachDbStorage(
+    public static IGlobalConfiguration<CockroachDbStorage> UseCockroachDbStorage(
       this IGlobalConfiguration configuration,
       string connectionString,
       PostgreSqlStorageOptions options)
@@ -65,13 +65,13 @@ namespace Hangfire.PostgreSql
     /// <param name="connectionString">Connection string</param>
     /// <param name="connectionSetup">Optional setup action to apply to created connections</param>
     /// <param name="options">Advanced options</param>
-    public static IGlobalConfiguration<PostgreSqlStorage> UseCockroachDbStorage(
+    public static IGlobalConfiguration<CockroachDbStorage> UseCockroachDbStorage(
       this IGlobalConfiguration configuration,
       string connectionString,
       Action<NpgsqlConnection> connectionSetup,
       PostgreSqlStorageOptions options)
     {
-      PostgreSqlStorage storage = new(connectionString, connectionSetup, options);
+      CockroachDbStorage storage = new(connectionString, connectionSetup, options);
 
       return configuration.UseStorage(storage);
     }
@@ -84,12 +84,12 @@ namespace Hangfire.PostgreSql
     /// <param name="configuration">Configuration</param>
     /// <param name="connectionFactory">Connection factory</param>
     /// <param name="options">Advanced options</param>
-    public static IGlobalConfiguration<PostgreSqlStorage> UseCockroachDbStorage(
+    public static IGlobalConfiguration<CockroachDbStorage> UseCockroachDbStorage(
       this IGlobalConfiguration configuration,
       IConnectionFactory connectionFactory,
       PostgreSqlStorageOptions options)
     {
-      PostgreSqlStorage storage = new(connectionFactory, options);
+      CockroachDbStorage storage = new(connectionFactory, options);
 
       return configuration.UseStorage(storage);
     }
@@ -101,11 +101,11 @@ namespace Hangfire.PostgreSql
     /// </summary>
     /// <param name="configuration">Configuration</param>
     /// <param name="connectionFactory">Connection factory</param>
-    public static IGlobalConfiguration<PostgreSqlStorage> UseCockroachDbStorage(
+    public static IGlobalConfiguration<CockroachDbStorage> UseCockroachDbStorage(
       this IGlobalConfiguration configuration,
       IConnectionFactory connectionFactory)
     {
-      PostgreSqlStorage storage = new(connectionFactory, new PostgreSqlStorageOptions());
+      CockroachDbStorage storage = new(connectionFactory, new PostgreSqlStorageOptions());
 
       return configuration.UseStorage(storage);
     }

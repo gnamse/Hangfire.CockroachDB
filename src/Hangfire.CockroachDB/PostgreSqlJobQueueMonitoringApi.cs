@@ -28,9 +28,9 @@ namespace Hangfire.PostgreSql
 {
   internal class PostgreSqlJobQueueMonitoringApi : IPersistentJobQueueMonitoringApi
   {
-    private readonly PostgreSqlStorage _storage;
+    private readonly CockroachDbStorage _storage;
 
-    public PostgreSqlJobQueueMonitoringApi(PostgreSqlStorage storage)
+    public PostgreSqlJobQueueMonitoringApi(CockroachDbStorage storage)
     {
       _storage = storage ?? throw new ArgumentNullException(nameof(storage));
     }
